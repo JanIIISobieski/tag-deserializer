@@ -2,6 +2,7 @@ use clap::Parser;
 use serde_json::Value;
 use std::process;
 use mtag_deserializinator_inator::{import_file, get_file_size, read_file_header};
+use colored::Colorize;
 
 /// Program to parse and correct the binary output data of the MTAG 2.0 and related tags
 #[derive(Parser, Debug)]
@@ -22,7 +23,7 @@ fn main() {
 
     let file_size = get_file_size(&args.source)
         .unwrap_or_else(|err| {
-           println!("Could not get file size: {err}");
+           println!("{} {} {}", "Error: ".red().bold(), "Could not get file size:".red(), err.to_string().red());
            process::exit(0); 
         });
     
@@ -30,13 +31,13 @@ fn main() {
 
     let mut reader = import_file(&args.source)
         .unwrap_or_else(|err| {
-            println!("Could not open the file: {err}");
+            println!("{} {} {}", "Error: ".red().bold(), "Could not open the file: ".red(), err.to_string().red());
             process::exit(1);
         });
 
     let line = read_file_header(&mut reader)
         .unwrap_or_else(|err| {
-            println!("Could not read header: {err}");
+            println!("{} {} {}", "Error: ".red().bold(), "Could not read header: ". red(), err.to_string().red());
             process::exit(2);
         });
 
@@ -44,7 +45,7 @@ fn main() {
 
     let parsed_header: Value = serde_json::from_str(&line)
         .unwrap_or_else(|err|{
-            println!("Failed to parse header: {err}");
+            println!("{} {} {}", "Error: ".red().bold(), "Failed to parse header: ".red(), err.to_string().red());
             process::exit(3);
         });
     
