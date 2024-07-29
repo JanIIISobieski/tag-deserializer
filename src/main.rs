@@ -51,8 +51,9 @@ fn main() {
     
     println!("{:#?}", parsed_header);
 
-    for (key, value) in parsed_header["data"].as_object().unwrap() {
-        println!("{:#?}", key);
-        println!("{:#?}", value);
+    // We are iterating over a hash map here
+    for (key, value) in (parsed_header["buffers"].as_object())
+        .unwrap_or_else(|| {println!("{} {}", "Error: ".red().bold(), "Malformed header does not contain 'buffers' as key: ".red()); process::exit(4);}) {
+        println!("{:#?}: {:#?}", key, value);
     }
 }
