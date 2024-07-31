@@ -1,45 +1,53 @@
 import pytest
 from pathlib import Path
 from animal_tag.serialization.buffer_generator import DataBuffer
+from animal_tag.deserialization.deserializer import FileReader, FileParser
+import itertools
 
-ID        = 1
-HEADER    = "BTX"
-DATA      = "HH"
-SIZE      = 10
-VAL       = 2
-TIME      = 1000
-CH_SP     = False
-NUM_BUFF  = 1
-METADATA  = {"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}
-CH_NAMES  = ["ch1", "ch2"]
-BUFF_NAME = "test"
+ID        = [1]
+HEADER    = ["BTX"]
+DATA      = ["HH"]
+SIZE      = [10, 100, 8192]
+VAL       = [2]
+TIME      = [1000]
+CH_SP     = [True, False]
+NUM_BUFF  = [1, 2, 3, 4]
+METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}]
+BUFF_NAME = ["test"]
 
-@pytest.fixture(scope="session", params=[
-    {"folder"  : "Short",
-     "fileroot": "TestFile1.bin"}
-],
-ids = [
-    "Short File"
-])
+def get_buffer_combinations():
+    for  file_num, (id, header, data, size, val, time, ch_sp,
+         num_buff, metadata, buff_name) in enumerate(itertools.product(ID, HEADER, DATA, SIZE, VAL, TIME, CH_SP,
+                                                                       NUM_BUFF, METADATA, BUFF_NAME)):
+        filename = "TestFile{}.bin".format(file_num)
+        ch_names = ["ch{}".format(i) for i in range(len(data))]
+        yield {"filename": filename, "params": (id, time, header, data, size, val,
+                                                ch_sp, num_buff, metadata, buff_name, ch_names)}
+
+
+@pytest.fixture(scope="session", params=list(get_buffer_combinations()))
 def write_bin_file(request, tmp_path_factory):
-    tmp_folder = tmp_path_factory.mktemp(request.param["folder"])
-    bin_file   = tmp_folder / (request.param["fileroot"] + ".bin")
+    tmp_folder = tmp_path_factory.mktemp("SingleBuffer")
+    bin_file   = tmp_folder / (request.param["filename"])
 
-    buffer = DataBuffer(output_file=bin_file,
-                        id=ID,
-                        time=TIME,
-                        header_format=HEADER,
-                        data_format=DATA,
-                        buffer_size=SIZE,
-                        value=VAL,
-                        split_channel=CH_SP,
-                        num_buffers=NUM_BUFF,
-                        metadata=METADATA,
-                        buffer_name=BUFF_NAME,
-                        channel_names=CH_NAMES
-                        )
+    buffer = DataBuffer(bin_file, *request.param["params"])
     buffer.write_file()
-    return {"file": bin_file}
+    return {"file": Path(bin_file), "buffer": buffer}
 
-def test_bin_file(write_bin_file):
-    assert True
+
+def test_bin_file_size(write_bin_file):
+    fr = FileReader(write_bin_file["file"])
+    fr.open_file()
+    header = fr.readline()
+    file_size = fr.size
+
+    buffer = write_bin_file["buffer"]
+
+    assert (file_size - len(header)) == buffer.num_buffers*buffer.buffer_size
+
+def test_bin_file_header_parsing(write_bin_file):
+    fp = FileParser(write_bin_file["file"], 'Test.h5') 
+    fp.open_file()
+    fp.read_file_header()
+
+    assert fp.header == write_bin_file["buffer"].header_dict

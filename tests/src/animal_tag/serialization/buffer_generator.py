@@ -44,6 +44,8 @@ class DataBuffer:
         self.buffer_name = buffer_name
         self.metadata = metadata
         self.channel_names = channel_names
+        self.data = b''
+        self.header_dict = {}
 
     def create_file_header(self):
         """Creates the overall file header
@@ -59,6 +61,7 @@ class DataBuffer:
                                                       "data": self.data_format,
                                                       "buffer_size": self.buffer_size,
                                                       "channel_names": self.channel_names}}})
+        self.header_dict = header
         return header
 
     def create_buffer(self, id : int, time : int, header_format : str,
@@ -76,8 +79,8 @@ class DataBuffer:
         Returns:
             bytes: Data buffer with the specifications given by the inputs
         """
-        header_size = self._get_packet_size(header_format)
-        data_packet_size = self._get_packet_size(data_format)
+        header_size = self.get_packet_size(header_format)
+        data_packet_size = self.get_packet_size(data_format)
         num_reps = (buffer_size - header_size)//data_packet_size  # shorthand division operator to cast to int: a//b is equivalent to floor(a/b) or int(a/b)    
         bytes_underflow = buffer_size - header_size - num_reps*data_packet_size
 
@@ -112,18 +115,26 @@ class DataBuffer:
     def write_file(self):
         """Write an MTAG file that satisfies the class inputs
         """
-        with open(self.output_file, 'w') as f:
-            json.dump(self.create_file_header(), f)
-            f.write('\n')  # get a newline to terminate the header
 
+       # with open(self.output_file, 'w') as f:
+       #     json.dump(self.create_file_header(), f, separators=(',', ':'))
+       #     f.write('\n')  # get a newline to terminate the header
+            
         with open(self.output_file, 'a+b') as f:
+            header = json.dumps(self.create_file_header(), ensure_ascii=False).encode('utf-8')
+            header += '\n'.encode('utf-8')
+
+            self.data += header
+            f.write(header)
+
             for i in range(self.num_buffers):
                 buffer = self.create_buffer(id=self.id, time=(i+1)*self.time, header_format=self.header_format,
                                            data_format=self.data_format, buffer_size=self.buffer_size,
                                            value=self.value)
+                self.data += buffer
                 f.write(buffer)
 
-    def _get_packet_size(self, format : str):
+    def get_packet_size(self, format : str):
         """Find the size of the data packet
 
         Args:
