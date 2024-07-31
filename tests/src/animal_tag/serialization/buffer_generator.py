@@ -188,8 +188,8 @@ if __name__ == '__main__':
                 "species": args.species,
                 "date": args.date}
 
-    test_buffer = TestDataBuffer(output_file=args.output_file, id=args.id, time=args.time,
-                                 header_format=args.header_format, data_format=args.format, buffer_size=args.data_size,
-                                 value=args.val, split_channel=args.split_channel, num_buffers=args.num_buffers,
-                                 metadata=metadata, buffer_name=args.buffer_name, channel_names=args.channel_names)
+    test_buffer = DataBuffer(output_file=args.output_file, id=args.id, time=args.time,
+                             header_format=args.header_format, data_format=args.format, buffer_size=args.data_size,
+                             value=args.val, split_channel=args.split_channel, num_buffers=args.num_buffers,
+                             metadata=metadata, buffer_name=args.buffer_name, channel_names=args.channel_names)
     test_buffer.write_file()
