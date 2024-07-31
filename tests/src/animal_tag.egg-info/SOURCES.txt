@@ -1,0 +1,10 @@
+pyproject.toml
+src/__init__.py
+src/animal_tag.egg-info/PKG-INFO
+src/animal_tag.egg-info/SOURCES.txt
+src/animal_tag.egg-info/dependency_links.txt
+src/animal_tag.egg-info/requires.txt
+src/animal_tag.egg-info/top_level.txt
+src/animal_tag/serialization/__init__.py
+src/animal_tag/serialization/buffer_generator.py
+tests/test_creation.py

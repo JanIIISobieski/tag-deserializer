@@ -1,0 +1,7 @@
+numpy
+scipy
+pyserial
+matplotlib
+h5py
+rawutil
+tqdm

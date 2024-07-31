@@ -12,7 +12,7 @@ DATA_DICT = {"B": 1, "b": 1,
              "T": 4, "t": 4  # custom type, corresponds to L (uint_32) from struct/rawutil, corresponds to a time, which will have special treatment
              }
 
-class TestDataBuffer:
+class DataBuffer:
     def __init__(self, output_file : str, id : int, time : int, header_format : str,
                  data_format : str, buffer_size : int, value : int, split_channel : bool,
                  num_buffers : int, metadata : dict, buffer_name : str, channel_names : str):

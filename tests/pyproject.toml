@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cetacean_tag"
+name = "animal_tag"
 version = "0.1.0"
 authors = [
 	{ name = "Gabriel Antoniak", email = "gjantoniak@gmail.com" },
