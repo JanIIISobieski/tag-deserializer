@@ -45,6 +45,7 @@ class FileParser():
                  savefilename: str | Path):
         self.file = FileReader(filename)
         self.header = {}
+        self.keys = {}
 
     def add_data_types(self, data_types):
         for data_type in data_types:
@@ -100,6 +101,13 @@ class FileParser():
         line = self.file.readline()
         self.header = decoder.decode(line.decode('utf-8', errors='replace')) 
         return self.header
+
+    def generate_decoder(self):
+        decoder = {}
+        for (device_name, formatting) in self.header["buffers"]:
+            header = formatting["header"]
+            data   = formatting["data"]
+
 
     def read_id(self):
         return self.file.read(1)[0]

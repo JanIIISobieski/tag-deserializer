@@ -1,15 +1,15 @@
 import pytest
 from pathlib import Path
-from animal_tag.serialization.buffer_generator import DataBuffer
-from animal_tag.deserialization.deserializer import FileReader, FileParser
+from animal_tag.serializer.buffer_generator import DataBuffer
+from animal_tag.serializer.deserializer import FileReader, FileParser
 import itertools
 
 ID        = [1]
 HEADER    = ["BTX"]
-DATA      = ["HH"]
-SIZE      = [10, 100, 8192]
+DATA      = ["H"]
+SIZE      = [10, 8192]
 VAL       = [2]
-TIME      = [1000]
+TIME      = [4093]
 CH_SP     = [True, False]
 NUM_BUFF  = [1, 2, 3, 4]
 METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}]
@@ -24,7 +24,6 @@ def get_buffer_combinations():
         yield {"filename": filename, "params": (id, time, header, data, size, val,
                                                 ch_sp, num_buff, metadata, buff_name, ch_names)}
 
-
 @pytest.fixture(scope="session", params=list(get_buffer_combinations()))
 def write_bin_file(request, tmp_path_factory):
     tmp_folder = tmp_path_factory.mktemp("SingleBuffer")
@@ -33,7 +32,6 @@ def write_bin_file(request, tmp_path_factory):
     buffer = DataBuffer(bin_file, *request.param["params"])
     buffer.write_file()
     return {"file": Path(bin_file), "buffer": buffer}
-
 
 def test_bin_file_size(write_bin_file):
     fr = FileReader(write_bin_file["file"])

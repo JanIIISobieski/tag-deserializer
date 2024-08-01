@@ -2,6 +2,7 @@ import struct
 import argparse
 import json
 
+
 # Stores the mapping from MTAG key to the size of the key
 DATA_DICT = {"B": 1, "b": 1,
              "H": 2, "h": 2, # int_16 and uint_16
@@ -11,6 +12,7 @@ DATA_DICT = {"B": 1, "b": 1,
              "X": 1, "x": 1, # padding byte, explicitly taken care of rather than relying on struct/rawutil pack, always 0
              "T": 4, "t": 4  # custom type, corresponds to L (uint_32) from struct/rawutil, corresponds to a time, which will have special treatment
              }
+
 
 class DataBuffer:
     def __init__(self, output_file : str, id : int, time : int, header_format : str,
