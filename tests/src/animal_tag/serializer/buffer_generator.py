@@ -2,16 +2,7 @@ import struct
 import argparse
 import json
 
-
-# Stores the mapping from MTAG key to the size of the key
-DATA_DICT = {"B": 1, "b": 1,
-             "H": 2, "h": 2, # int_16 and uint_16
-             "U": 3, "u": 3, # int_24 and uint_24
-             "f": 4,         # f32
-             "L": 4, "l": 4, # int_32 and uint_32
-             "X": 1, "x": 1, # padding byte, explicitly taken care of rather than relying on struct/rawutil pack, always 0
-             "T": 4, "t": 4  # custom type, corresponds to L (uint_32) from struct/rawutil, corresponds to a time, which will have special treatment
-             }
+from animal_tag.serializer.utils import get_packet_size
 
 
 class DataBuffer:
@@ -55,7 +46,8 @@ class DataBuffer:
         Returns:
             dict: The file header as a dictionary
         """
-        header = self.metadata
+        header = {}
+        header.update({"metadata": self.metadata})
         header.update({"buffers": {self.buffer_name: {"id": self.id,
                                                       "time": self.time,
                                                       "header": self.header_format,
@@ -81,8 +73,8 @@ class DataBuffer:
         Returns:
             bytes: Data buffer with the specifications given by the inputs
         """
-        header_size = self.get_packet_size(header_format)
-        data_packet_size = self.get_packet_size(data_format)
+        header_size = get_packet_size(header_format)
+        data_packet_size = get_packet_size(data_format)
         num_reps = (buffer_size - header_size)//data_packet_size  # shorthand division operator to cast to int: a//b is equivalent to floor(a/b) or int(a/b)    
         bytes_underflow = buffer_size - header_size - num_reps*data_packet_size
 
@@ -122,9 +114,9 @@ class DataBuffer:
        #     json.dump(self.create_file_header(), f, separators=(',', ':'))
        #     f.write('\n')  # get a newline to terminate the header
             
-        with open(self.output_file, 'a+b') as f:
-            header = json.dumps(self.create_file_header(), ensure_ascii=False).encode('utf-8')
-            header += '\n'.encode('utf-8')
+        with open(self.output_file, 'wb') as f:
+            header = json.dumps(self.create_file_header(), ensure_ascii=False).encode('utf-8')  # binary file, so we have to encode the string
+            header += '\n'.encode('utf-8')  # this is a binary file, we need to encode the string
 
             self.data += header
             f.write(header)
@@ -135,21 +127,7 @@ class DataBuffer:
                                            value=self.value)
                 self.data += buffer
                 f.write(buffer)
-
-    def get_packet_size(self, format : str):
-        """Find the size of the data packet
-
-        Args:
-            format (str): Data packet format
-
-        Returns:
-            _type_: The size of the data packet in bytes
-        """
-        packet_size = 0
-        for char in format:
-            packet_size += DATA_DICT[char]
-        return packet_size
-    
+   
     def _correct_format(self, format : str):
         """Takes in mtag deserializer format and returns rawutil/struct formatting
 
@@ -162,6 +140,7 @@ class DataBuffer:
         actual_format = format.replace("X", "B")
         actual_format = actual_format.replace("T", "L")
         return actual_format
+
 
 if __name__ == '__main__':
     """This function will generate a header and multiples of one buffer type

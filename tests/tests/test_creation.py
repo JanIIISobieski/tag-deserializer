@@ -6,7 +6,7 @@ import itertools
 
 ID        = [1]
 HEADER    = ["BTX"]
-DATA      = ["H"]
+DATA      = ["H", "HB"]
 SIZE      = [10, 8192]
 VAL       = [2]
 TIME      = [4093]
@@ -16,6 +16,16 @@ METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 
 BUFF_NAME = ["test"]
 
 def get_buffer_combinations():
+    """For the given global variables, give all possible permutations of the inputs
+
+    Please do be careful with these inputs, make sure that all of these combinations are possible and valid,
+    so that buffer size is equal to or greater than the sum of the header size and the data format.
+
+    Yields:
+        dict: test inputs for pytest, with the path to file and the buffer writer that originally created it.
+              do note that parameter order does in fact matter here, so do not change the order without updating
+              how these parameters are passed DataBuffer in write_bin_file().
+    """
     for  file_num, (id, header, data, size, val, time, ch_sp,
          num_buff, metadata, buff_name) in enumerate(itertools.product(ID, HEADER, DATA, SIZE, VAL, TIME, CH_SP,
                                                                        NUM_BUFF, METADATA, BUFF_NAME)):
