@@ -108,15 +108,10 @@ class DataBuffer:
 
     def write_file(self):
         """Write an MTAG file that satisfies the class inputs
-        """
-
-       # with open(self.output_file, 'w') as f:
-       #     json.dump(self.create_file_header(), f, separators=(',', ':'))
-       #     f.write('\n')  # get a newline to terminate the header
-            
+        """            
         with open(self.output_file, 'wb') as f:
             header = json.dumps(self.create_file_header(), ensure_ascii=False).encode('utf-8')  # binary file, so we have to encode the string
-            header += '\n'.encode('utf-8')  # this is a binary file, we need to encode the string
+            header += '\n'.encode('utf-8')  # this is a binary file, we need to encode the string, a header is terminated by a new line
 
             self.data += header
             f.write(header)

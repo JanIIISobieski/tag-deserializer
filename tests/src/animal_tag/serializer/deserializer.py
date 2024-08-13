@@ -6,7 +6,6 @@ import tqdm
 from json import JSONDecoder
 
 import numpy as np
-import pytest
 
 class FileReader:
     def __init__(self, filename: str | Path):
@@ -46,10 +45,7 @@ class FileParser():
         self.file = FileReader(filename)
         self.header = {}
         self.keys = {}
-
-    def add_data_types(self, data_types):
-        for data_type in data_types:
-            self.data[data_type.key] = data_type
+        self.data = {}
 
     def process_buffer(self, ID, count, time, data):
         if self.data[ID].add_raw_data(count, time, data):
@@ -63,17 +59,17 @@ class FileParser():
     def parse(self):
         self.file.open_file()
         self.header = self.read_file_header()
-        while (self.file.bytes_read + 8192) <= self.file.size:
-            ID, count, time, raw_data = self.read_data_buffer()
-            reconstructed_data = self.process_buffer(ID, count, time, raw_data)
+        while self.file.bytes_read < self.file.size:
+            id, count, time, raw_data = self.read_data_buffer()
+            reconstructed_data = self.process_buffer(id, count, time, raw_data)
             if reconstructed_data is not None:
-                self.saver.save_data(self.data[ID].name, reconstructed_data)
+                self.saver.save_data(self.data[id].name, reconstructed_data)
 
         # All file data read, consume whatever data remains unread
-        for ID in self.data:
-            reconstructed_data = self.data[ID].reconstruct(self.header)
+        for id in self.data:
+            reconstructed_data = self.data[id].reconstruct(self.header)
             if reconstructed_data is not None:
-                self.saver.save_data(self.data[ID].name, reconstructed_data)
+                self.saver.save_data(self.data[id].name, reconstructed_data)
 
         self.file.close_file()
         self.saver.close_file()
@@ -104,10 +100,13 @@ class FileParser():
 
     def generate_decoder(self):
         decoder = {}
-        for (device_name, formatting) in self.header["buffers"]:
-            header = formatting["header"]
-            data   = formatting["data"]
+        for (device_name, formatting) in self.header["buffers"].items():
+            temp = formatting.copy()
+            temp.update({"device": device_name})
+            del temp["id"]
 
+            decoder.update({formatting["id"]: temp})
+        self.decoder = decoder
 
     def read_id(self):
         return self.file.read(1)[0]

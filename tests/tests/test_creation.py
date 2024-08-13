@@ -1,9 +1,12 @@
 import pytest
 from pathlib import Path
+
+import itertools
+
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
 from animal_tag.serializer.utils import get_packet_size
-import itertools
+
 
 ID        = [1]
 HEADER    = ["BTX"]
@@ -20,6 +23,7 @@ def get_buffer_combinations():
     """For the given global variables, give all possible permutations of the inputs
 
     If passed size is not enough to store the full buffer, it will be replaced by the actual minimum size.
+    IMPORTANT: ID CAN ONLY BE A SINGULAR VALUE, THIS BASIC FUNCTION WAS NOT WRITTEN TO HANDLE MULTIPLE IDS.
 
     Yields:
         dict: test inputs for pytest, with the path to file and the buffer writer that originally created it.
@@ -80,3 +84,23 @@ def test_bin_file_header_parsing(write_bin_file):
     fp.read_file_header()
 
     assert fp.header == write_bin_file["buffer"].header_dict
+
+def test_bin_file_decoder_creation(write_bin_file):
+    """Test the ability of the file parser to create a decoder based on the header
+
+    This mostly reformats the header from the JSON where keys must be strings (device names)
+    to a dictionary where the key is a value, namely the ID
+
+    Args:
+        write_bin_file (pytest fixture): file and buffer to check
+    """
+
+    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp.open_file()
+    fp.read_file_header()
+    fp.generate_decoder()
+
+    # We are really abusing notation here. This will only work if we have a singular ID.
+    # This unpacks the keys from the decoder is then captured in a list. The buffer.id is
+    # likewise captured in a list so we can compare the two lists together.
+    assert [*fp.decoder.keys()] == [write_bin_file["buffer"].id]
