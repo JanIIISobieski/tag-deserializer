@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
+from animal_tag.serializer.utils import get_packet_size
 import itertools
 
 ID        = [1]
@@ -18,8 +19,7 @@ BUFF_NAME = ["test"]
 def get_buffer_combinations():
     """For the given global variables, give all possible permutations of the inputs
 
-    Please do be careful with these inputs, make sure that all of these combinations are possible and valid,
-    so that buffer size is equal to or greater than the sum of the header size and the data format.
+    If passed size is not enough to store the full buffer, it will be replaced by the actual minimum size.
 
     Yields:
         dict: test inputs for pytest, with the path to file and the buffer writer that originally created it.
@@ -31,11 +31,22 @@ def get_buffer_combinations():
                                                                        NUM_BUFF, METADATA, BUFF_NAME)):
         filename = "TestFile{}.bin".format(file_num)
         ch_names = ["ch{}".format(i) for i in range(len(data))]
-        yield {"filename": filename, "params": (id, time, header, data, size, val,
+        correct_size = max(size, get_packet_size(header)+get_packet_size(data))  # ensures passed size is valid
+
+        yield {"filename": filename, "params": (id, time, header, data, correct_size, val,
                                                 ch_sp, num_buff, metadata, buff_name, ch_names)}
 
 @pytest.fixture(scope="session", params=list(get_buffer_combinations()))
 def write_bin_file(request, tmp_path_factory):
+    """Generate temporary files with assorted settings
+
+    Args:
+        request (dict): pytest request structure, with params as a key
+        tmp_path_factory (pytest tmp_path_factory): automatically takes care of generating a temporary path for the test
+
+    Returns:
+        dict: file path and buffer used to create file for further test use
+    """
     tmp_folder = tmp_path_factory.mktemp("SingleBuffer")
     bin_file   = tmp_folder / (request.param["filename"])
 
@@ -44,6 +55,11 @@ def write_bin_file(request, tmp_path_factory):
     return {"file": Path(bin_file), "buffer": buffer}
 
 def test_bin_file_size(write_bin_file):
+    """Ensure file is of the correct size
+
+    Args:
+        write_bin_file (pytest fixture): file/buffer to check
+    """
     fr = FileReader(write_bin_file["file"])
     fr.open_file()
     header = fr.readline()
@@ -54,6 +70,11 @@ def test_bin_file_size(write_bin_file):
     assert (file_size - len(header)) == buffer.num_buffers*buffer.buffer_size
 
 def test_bin_file_header_parsing(write_bin_file):
+    """Ensure header is correctly parsed and imported
+
+    Args:
+        write_bin_file (pytest fixture): file/buffer to check
+    """
     fp = FileParser(write_bin_file["file"], 'Test.h5') 
     fp.open_file()
     fp.read_file_header()
