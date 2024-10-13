@@ -18,6 +18,7 @@ class FileReader:
                                      unit="B", unit_scale=True,
                                      unit_divisor=1024, leave=True)
         self.data_buffer_start = []
+        self.saved_loc = 0
 
     def update_bytes_read(self, amount):
         self.bytes_read += amount
@@ -38,6 +39,27 @@ class FileReader:
     def read(self, num_bytes):
         self.update_bytes_read(num_bytes)
         return self.file_handle.read(num_bytes)
+    
+    def save_current_loc(self):
+        self.save_current_loc = self.file_handle.tell()
+    
+    def seek(self, offset, whence):
+        """Seek a new file location
+
+        See also seek() in Python, that this wraps
+        Args:
+            offset (int): Offset location
+            whence (int): File location to start at. 0 is beginning of file, 1 is current file location, and 2 is from end of file.
+        """
+        self.file_handle.seek(offset, whence)
+    
+    def tell(self):
+        """Get the current file location
+
+        Returns:
+            int: Current file location from start of file
+        """
+        return self.file_handle.tell()
 
 
 class FileParser():
@@ -115,8 +137,9 @@ class FileParser():
             temp.update({"header_size": get_packet_size(formatting["header"])})
             temp.update({"data_packet_size": get_packet_size(formatting["data"])})
             temp.update({"num_packets": (formatting["buffer_size"]-(temp["header_size"]))//temp["data_packet_size"]})
-            temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]})
+            temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]-temp["header_size"]})
             temp.update({"data_read_format": "<" + temp["num_packets"]*temp["data"] + temp["num_overflow_bytes"]*"x"})
+            temp.update({"num_buffers": 0})  # allocate space to count the number of buffers
 
             decoder.update({formatting["id"]: temp})
         self.decoder = decoder
@@ -133,3 +156,23 @@ class FileParser():
             int: ID byte of the buffer
         """
         return self.file.read(1)[0]
+    
+    def count_buffers(self):
+        """Count the number of buffers across the file for pre-allocation.
+
+        We can assume that we have already read the file header and have generated a decoder.
+        Otherwise, we would have no idea how to parse the file. Knowing the number of buffers
+        will allow for pre-allocating a file with sizes, and is useful for testing.
+        """
+        self.file.save_current_loc()  #save the current file location for parsing after
+
+        file_loc = self.file.tell()
+        while file_loc < self.file.size:
+            id = self.read_id()  #what is the current ID
+            if id not in self.decoder.keys():
+                raise Exception("ID is not in decoder, failed to pre-parse file")
+            self.decoder[id]["num_buffers"] += 1
+            self.file.seek(self.decoder[id]["buffer_size"]-1, 1)  #skip over the remaining bytes to get to the next ID
+            file_loc = self.file.tell()
+
+        self.file.seek(self.file.saved_loc, 0)  #go back to the saved file location to read the file data

@@ -7,7 +7,6 @@ from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
 from animal_tag.serializer.utils import get_packet_size
 
-
 ID        = [1]
 HEADER    = ["BTX"]
 DATA      = ["H", "HB"]
@@ -18,6 +17,7 @@ CH_SP     = [True, False]
 NUM_BUFF  = [1, 2, 3, 4]
 METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}]
 BUFF_NAME = ["test"]
+
 
 def get_buffer_combinations():
     """For the given global variables, give all possible permutations of the inputs
@@ -40,6 +40,7 @@ def get_buffer_combinations():
         yield {"filename": filename, "params": (id, time, header, data, correct_size, val,
                                                 ch_sp, num_buff, metadata, buff_name, ch_names)}
 
+
 @pytest.fixture(scope="session", params=list(get_buffer_combinations()))
 def write_bin_file(request, tmp_path_factory):
     """Generate temporary files with assorted settings
@@ -58,6 +59,7 @@ def write_bin_file(request, tmp_path_factory):
     buffer.write_file()
     return {"file": Path(bin_file), "buffer": buffer}
 
+
 def test_bin_file_size(write_bin_file):
     """Ensure file is of the correct size
 
@@ -73,6 +75,7 @@ def test_bin_file_size(write_bin_file):
 
     assert (file_size - len(header)) == buffer.num_buffers*buffer.buffer_size
 
+
 def test_bin_file_header_parsing(write_bin_file):
     """Ensure header is correctly parsed and imported
 
@@ -84,6 +87,7 @@ def test_bin_file_header_parsing(write_bin_file):
     fp.read_file_header()
 
     assert fp.header == write_bin_file["buffer"].header_dict
+
 
 def test_bin_file_decoder_creation(write_bin_file):
     """Test the ability of the file parser to create a decoder based on the header
@@ -101,8 +105,23 @@ def test_bin_file_decoder_creation(write_bin_file):
     fp.read_file_header()
     fp.generate_decoder()
 
-    # We are really abusing notation here. This will only work if we have a singular ID.
+    # We are really abusing notation here. This will only _summary_work if we have a singular ID.
     # This unpacks the keys from the decoder is then captured in a list. The buffer.id is
     # likewise captured in a list so we can compare the two lists together. This then simply
     # compares to ensure the keys in the decoder matches the available ID
     assert [*fp.decoder.keys()] == [write_bin_file["buffer"].id]
+
+def test_file_preparser(write_bin_file):
+    """Test the full deserialization of the file
+
+    Args:
+        write_bin_file (pytest fixture): file and buffer to check
+    """
+
+    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp.open_file()
+    fp.read_file_header()
+    fp.generate_decoder()
+    fp.count_buffers()
+
+    assert fp.decoder[ID[0]]["num_buffers"] == write_bin_file["buffer"].num_buffers
