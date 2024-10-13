@@ -6,6 +6,7 @@ import tqdm
 from json import JSONDecoder
 
 import numpy as np
+from animal_tag.serializer.utils import get_packet_size
 
 class FileReader:
     def __init__(self, filename: str | Path):
@@ -44,8 +45,7 @@ class FileParser():
                  savefilename: str | Path):
         self.file = FileReader(filename)
         self.header = {}
-        self.keys = {}
-        self.data = {}
+        self.decoder = {}  # is populated when file header is read
 
     def process_buffer(self, ID, count, time, data):
         if self.data[ID].add_raw_data(count, time, data):
@@ -58,7 +58,8 @@ class FileParser():
 
     def parse(self):
         self.file.open_file()
-        self.header = self.read_file_header()
+        self.header = self.read_file_header() 
+        self.generate_decoder()
         while self.file.bytes_read < self.file.size:
             id, count, time, raw_data = self.read_data_buffer()
             reconstructed_data = self.process_buffer(id, count, time, raw_data)
@@ -76,9 +77,14 @@ class FileParser():
         self.file.update_bytes_read(0)
 
     def read_data_header(self, ID, format_dict):
-        header_content = self.file.read(format_dict[ID].header_size)
-        return struct.unpack(format_dict[ID].header_format,
-                             header_content)
+        header_content = self.file.read(get_packet_size(self.decoder[ID])-1)
+        data = struct.unpack(self.decoder[ID].header, header_content)
+        if self.decoder[ID]["format_has_time"]:
+            time = data[header_content.index("T")]
+            data = ()
+
+        return {"time": data[header_content.index("T")] if self.decoder[ID]["format_has_time"] else None,
+                "bytes": data[:header_content.index("T")] + data[header_content.index("T")+1:] if self.decoder[ID]["format_has_time"] else data}
 
     def read_raw_data_buffer(self, ID, format_dict):
         return np.asarray(
@@ -87,10 +93,10 @@ class FileParser():
             dtype=np.int32)
 
     def read_data_buffer(self):
-        ID = self.read_id()
-        [count, time] = self.read_data_header(ID, self.data)
-        raw_data = self.read_raw_data_buffer(ID, self.data)
-        return (ID, count, time, raw_data)
+        id = self.read_id()
+        [count, time] = self.read_data_header(id, self.data)
+        raw_data = self.read_raw_data_buffer(id, self.data)
+        return (id, count, time, raw_data)
 
     def read_file_header(self):
         decoder = JSONDecoder()
@@ -101,12 +107,29 @@ class FileParser():
     def generate_decoder(self):
         decoder = {}
         for (device_name, formatting) in self.header["buffers"].items():
-            temp = formatting.copy()
+            temp = formatting.copy()  # = as assignment is a refernce copy (editing temp also edits formatting), rather than a deep copy allowing for seperate editing of temp and formatting
             temp.update({"device": device_name})
             del temp["id"]
+            temp.update({"format_has_time": "T" in formatting["header"]})
+            temp.update({"data_has_time": "T" in formatting["data"]})
+            temp.update({"header_size": get_packet_size(formatting["header"])})
+            temp.update({"data_packet_size": get_packet_size(formatting["data"])})
+            temp.update({"num_packets": (formatting["buffer_size"]-(temp["header_size"]))//temp["data_packet_size"]})
+            temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]})
+            temp.update({"data_read_format": "<" + temp["num_packets"]*temp["data"] + temp["num_overflow_bytes"]*"x"})
 
             decoder.update({formatting["id"]: temp})
         self.decoder = decoder
 
     def read_id(self):
+        """Read the ID byte of the buffer
+
+        We need the first byte which identifies from which dataset this data has come.
+        This is just a single read operation, though will return a list of bytes.
+        We thus need to get the first (and only) element of this list to get the ID.
+        This ID byte is then used by the decoder to get the right information for reading the data.
+
+        Returns:
+            int: ID byte of the buffer
+        """
         return self.file.read(1)[0]

@@ -89,7 +89,8 @@ def test_bin_file_decoder_creation(write_bin_file):
     """Test the ability of the file parser to create a decoder based on the header
 
     This mostly reformats the header from the JSON where keys must be strings (device names)
-    to a dictionary where the key is a value, namely the ID
+    to a dictionary where the key is a value, namely the ID. The decoder has additional fields
+    as well to aid in deserialization
 
     Args:
         write_bin_file (pytest fixture): file and buffer to check
@@ -102,5 +103,6 @@ def test_bin_file_decoder_creation(write_bin_file):
 
     # We are really abusing notation here. This will only work if we have a singular ID.
     # This unpacks the keys from the decoder is then captured in a list. The buffer.id is
-    # likewise captured in a list so we can compare the two lists together.
+    # likewise captured in a list so we can compare the two lists together. This then simply
+    # compares to ensure the keys in the decoder matches the available ID
     assert [*fp.decoder.keys()] == [write_bin_file["buffer"].id]

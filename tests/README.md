@@ -5,11 +5,12 @@ This defines the serialization format for the new animal tags. This will ensure 
 ### Overall Structure
 ```
       HEADER                    DATA
-[ __ ________ ____ | -------------------------- ]
-  ID   TIME   NULL     Formatted Sampled Data
-
-|    Header Size   |         Data Size          |
-| ---------------  Buffer Size  --------------- |
+[ __ ________ ____  | -------------------------- ]
+  ID   TIME   NULL      Formatted Sampled Data
+^                   ^                            ^
+| -- Header Size -- |  ------ Data Size ------   |
+|                                                |
+| ---------------  Buffer Size  ---------------  |
 
 ```
   * __ID__: single byte, uniquely identifies the sampling device from which the data is from
@@ -108,3 +109,8 @@ This means that the resulting buffer will only have 1 sample associated with thi
 
 If `buffer_size` were to be 9, it would be exactly the same case as previous, except that there would be a null byte following the one sample of data. __IMPORTANTLY: BUFFERS CAN HAVE LEFTOVER BYTES THAT DO NOT STORE DATA, AND ARE MERELY THERE TO KEEP BUFFER WRITES POWERS OF 2.__ Should a buffer of some size not be able to fit an integer multiple of the data format, the last remaining bytes will be null. These null bytes will be ignored during deserialization.
 
+# Python Notes
+One of the packags we are using here is pytest-benchmark, which allows for benchmarking specific tests to figure out speed of functions.
+We can run these checks by running `pytest -v`, which is a verbose output of pytest.
+This will run both all the unit tests, and also the benchmarks.
+Benchmarks can be easily identified in the code by taking a look at any functions beginning with `test_` that have `benchmark` as a function input. 

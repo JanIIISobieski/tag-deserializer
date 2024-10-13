@@ -1,7 +1,7 @@
 import numpy as np
 
 # Stores the mapping from MTAG key to the size of the key
-SIZE_DICT = {"B": 1, "b": 1,
+SIZE_DICT = {"B": 1, "b": 1, # int_8 and uint_8
              "H": 2, "h": 2, # int_16 and uint_16
              "U": 3, "u": 3, # int_24 and uint_24
              "f": 4,         # f32
