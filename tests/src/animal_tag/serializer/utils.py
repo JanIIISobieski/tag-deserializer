@@ -57,6 +57,21 @@ def get_packet_type(format : str):
         packet_type.append(TYPE_DICT[char])
     return packet_type
 
+def correct_format(format : str):
+    """Replace custom format string with struct/rawutil compatible string
+
+    What has to be done is every "T" for time to be replaced with "L" during unpacking.
+    This allows us to read the time vector correctly as an unsigned int32. We have "T"
+    in the custom format as the "T" allows the rest of the deserializer to know which
+    element corresponds to time.
+
+    Args:
+        format (str): custom format string
+
+    Returns:
+        str: struct/rawutil compatible string
+    """
+    return format.replace("T", "I")
 
 def unwrapper(values, max_number, bad_frac=0.5):
     """

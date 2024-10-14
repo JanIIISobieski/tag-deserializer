@@ -6,7 +6,7 @@ import tqdm
 from json import JSONDecoder
 
 import numpy as np
-from animal_tag.serializer.utils import get_packet_size
+from animal_tag.serializer.utils import get_packet_size, correct_format
 
 class FileReader:
     def __init__(self, filename: str | Path):
@@ -41,7 +41,7 @@ class FileReader:
         return self.file_handle.read(num_bytes)
     
     def save_current_loc(self):
-        self.save_current_loc = self.file_handle.tell()
+        self.saved_loc = self.file_handle.tell()
     
     def seek(self, offset, whence):
         """Seek a new file location
@@ -101,10 +101,11 @@ class FileParser():
 
     def read_data_header(self, ID):
         header_content = self.file.read(get_packet_size(self.decoder[ID]["header"])-1)
-        data = struct.unpack(self.decoder[ID]["header"][1:], header_content)
-        if self.decoder[ID]["format_has_time"]:
-            time = data[header_content.index("T")]
-            data = data[:header_content.index("T")] + data[header_content.index("T")+1:]
+        data = struct.unpack(correct_format(self.decoder[ID]["header"][1:]), header_content)
+        if self.decoder[ID]["header_has_time"]:
+            t_index = self.decoder[ID]["header"][1:].index("T")
+            time = data[t_index]
+            data = data[:t_index] + data[t_index+1:]
         else:
             time = []
             data = data
@@ -113,20 +114,29 @@ class FileParser():
 
     def read_raw_data_buffer(self, ID):
         # Read the data from the buffer in
-        all_bytes = self.file.read(self.decoder[ID].buffer_size - self.decoder[ID].header_size)
+        all_bytes = self.file.read(self.decoder[ID]["buffer_size"] - self.decoder[ID]["header_size"])
         if "u" in self.decoder[ID]["data"].lower():
-            data = rawutil.unpack(self.decoder[ID]["data_read_format"], all_bytes)
+            raw_data = rawutil.unpack(correct_format(self.decoder[ID]["data_read_format"]), all_bytes)
         else:
-            data = struct.unpack(self.decoder[ID]["data_read_format"], all_bytes)
+            raw_data = struct.unpack(correct_format(self.decoder[ID]["data_read_format"]), all_bytes)
         # Now based on the data, seperate out the channels and use the smallest numpy type to fit it in
+        #TOFIX: allow for null bytes to be handled elegantly here
+        data = [raw_data[i:-1:len(self.decoder[ID]["data"])] for i, channel in enumerate(self.decoder[ID]["data"])]  #index the list
         
-
-
+        if self.decoder[ID]["data_has_time"]:
+            t_index = self.decoder[ID]["data"].index("T")
+            time = data[t_index]
+            data = data[:t_index] + data[(t_index+1):]
+        else:
+            time = []
+            data = data
+        
+        return data, time
 
     def read_data_buffer(self):
         id = self.read_id()
-        [header_data, header_time] = self.read_data_header(id, self.data)
-        [data, time] = self.read_raw_data_buffer(id, self.data)
+        [header_data, header_time] = self.read_data_header(id)
+        [data, time] = self.read_raw_data_buffer(id)
         return (id, header_data, header_time, data, time)
 
     def read_file_header(self):
@@ -141,7 +151,7 @@ class FileParser():
             temp = formatting.copy()  # = as assignment is a refernce copy (editing temp also edits formatting), rather than a deep copy allowing for seperate editing of temp and formatting
             temp.update({"device": device_name})
             del temp["id"]
-            temp.update({"format_has_time": "T" in formatting["header"]})
+            temp.update({"header_has_time": "T" in formatting["header"]})
             temp.update({"data_has_time": "T" in formatting["data"]})
             temp.update({"header_size": get_packet_size(formatting["header"])})
             temp.update({"data_packet_size": get_packet_size(formatting["data"])})

@@ -125,3 +125,25 @@ def test_file_preparser(write_bin_file):
     fp.count_buffers()
 
     assert fp.decoder[ID[0]]["num_buffers"] == write_bin_file["buffer"].num_buffers
+
+def test_buffer_parse(write_bin_file):
+    """Test the parsing of a buffer
+
+    Args:
+        write_bin_file (pytest fixture): file and buffer to check
+    """
+    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp.open_file()
+    fp.read_file_header()
+    fp.generate_decoder()
+    fp.count_buffers()
+
+    num_buffers = write_bin_file["buffer"].num_buffers
+
+    for i in range(num_buffers):
+        (id, header_data, header_time, data, time) = fp.read_data_buffer()
+        assert header_time % write_bin_file["buffer"].time == 0
+        assert len(data) == len(write_bin_file["buffer"].data_format)
+        for channels in data:
+            for element in channels:
+                assert element == write_bin_file["buffer"].value

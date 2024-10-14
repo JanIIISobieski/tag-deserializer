@@ -81,7 +81,7 @@ class DataBuffer:
         buffer = self.create_buffer_header(header_format, id, time)
 
         for i in range(num_reps):
-            temp_data = [value if char != 'X' else 0 for char in data_format]
+            temp_data = [value if char != 'x' else 0 for char in data_format]
             if data_format.find('T') != -1:  # this function gives -1 on failure, which if it does we can ignore the case
                 temp_data[data_format.find('T')] = int(time + (i+1)*self.time/num_reps)
             buffer += struct.pack("<"+self._correct_format(data_format), *temp_data)  # we need to go from the MTAG format to the struct/rawutils format
@@ -132,7 +132,7 @@ class DataBuffer:
         Returns:
             str: MTAG format string converted into struct/rawutil format to allow for packing/unpacking
         """
-        actual_format = format.replace("X", "B")
+        actual_format = format.replace("x", "B")
         actual_format = actual_format.replace("T", "L")
         return actual_format
 
