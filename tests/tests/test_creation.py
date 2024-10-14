@@ -8,7 +8,7 @@ from animal_tag.serializer.deserializer import FileReader, FileParser
 from animal_tag.serializer.utils import get_packet_size
 
 ID        = [1]
-HEADER    = ["BTX"]
+HEADER    = ["BTx"]
 DATA      = ["H", "HB"]
 SIZE      = [10, 8192]
 VAL       = [2]
@@ -112,7 +112,7 @@ def test_bin_file_decoder_creation(write_bin_file):
     assert [*fp.decoder.keys()] == [write_bin_file["buffer"].id]
 
 def test_file_preparser(write_bin_file):
-    """Test the full deserialization of the file
+    """Test the pre-parsing to count the buffers
 
     Args:
         write_bin_file (pytest fixture): file and buffer to check

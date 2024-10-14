@@ -82,6 +82,7 @@ class FileParser():
         self.file.open_file()
         self.header = self.read_file_header() 
         self.generate_decoder()
+        self.count_buffers()
         while self.file.bytes_read < self.file.size:
             id, count, time, raw_data = self.read_data_buffer()
             reconstructed_data = self.process_buffer(id, count, time, raw_data)
@@ -98,27 +99,35 @@ class FileParser():
         self.saver.close_file()
         self.file.update_bytes_read(0)
 
-    def read_data_header(self, ID, format_dict):
-        header_content = self.file.read(get_packet_size(self.decoder[ID])-1)
-        data = struct.unpack(self.decoder[ID].header, header_content)
+    def read_data_header(self, ID):
+        header_content = self.file.read(get_packet_size(self.decoder[ID]["header"])-1)
+        data = struct.unpack(self.decoder[ID]["header"][1:], header_content)
         if self.decoder[ID]["format_has_time"]:
             time = data[header_content.index("T")]
-            data = ()
+            data = data[:header_content.index("T")] + data[header_content.index("T")+1:]
+        else:
+            time = []
+            data = data
 
-        return {"time": data[header_content.index("T")] if self.decoder[ID]["format_has_time"] else None,
-                "bytes": data[:header_content.index("T")] + data[header_content.index("T")+1:] if self.decoder[ID]["format_has_time"] else data}
+        return data, time
 
-    def read_raw_data_buffer(self, ID, format_dict):
-        return np.asarray(
-            struct.unpack(format_dict[ID].data_size * "B",
-                          self.file.read(format_dict[ID].data_size)),
-            dtype=np.int32)
+    def read_raw_data_buffer(self, ID):
+        # Read the data from the buffer in
+        all_bytes = self.file.read(self.decoder[ID].buffer_size - self.decoder[ID].header_size)
+        if "u" in self.decoder[ID]["data"].lower():
+            data = rawutil.unpack(self.decoder[ID]["data_read_format"], all_bytes)
+        else:
+            data = struct.unpack(self.decoder[ID]["data_read_format"], all_bytes)
+        # Now based on the data, seperate out the channels and use the smallest numpy type to fit it in
+        
+
+
 
     def read_data_buffer(self):
         id = self.read_id()
-        [count, time] = self.read_data_header(id, self.data)
-        raw_data = self.read_raw_data_buffer(id, self.data)
-        return (id, count, time, raw_data)
+        [header_data, header_time] = self.read_data_header(id, self.data)
+        [data, time] = self.read_raw_data_buffer(id, self.data)
+        return (id, header_data, header_time, data, time)
 
     def read_file_header(self):
         decoder = JSONDecoder()

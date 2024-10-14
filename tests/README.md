@@ -38,7 +38,7 @@ This means that the allowed characters for specifying the data format are:
 |     i     |  int32 |   4  | 32 bit signed int |
 |     I     | uint32 |   4  | 32 bit unsigned int |
 |     f     | float  |   4  | IEEE 754 single-precision |
-|     d     | double |   4  | IEEE 754 double-precision |
+|     d     | double |   8  | IEEE 754 double-precision |
 |     F     |  quad  |   4  | IEEE 754 quadruple-precision |
 |     c     |  char  |   1  | Character (1-byte bytes object) |
 |     X     |  null  |   1  | Null byte (0x00) at the location/ignore byte |
