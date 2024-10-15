@@ -4,9 +4,10 @@ from pathlib import Path
 import os
 import tqdm
 from json import JSONDecoder
+from collections import deque
 
 import numpy as np
-from animal_tag.serializer.utils import get_packet_size, correct_format
+from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer
 
 class FileReader:
     def __init__(self, filename: str | Path):
@@ -115,9 +116,9 @@ class FileParser():
     def read_raw_data_buffer(self, ID):
         # Read the data from the buffer in
         all_bytes = self.file.read(self.decoder[ID]["buffer_size"] - self.decoder[ID]["header_size"])
-        if "u" in self.decoder[ID]["data"].lower():
+        if "u" in self.decoder[ID]["data"].lower():  # for handling 24-bit numbers, we need rawutil
             raw_data = rawutil.unpack(correct_format(self.decoder[ID]["data_read_format"]), all_bytes)
-        else:
+        else:  # struct is faster for all other types
             raw_data = struct.unpack(correct_format(self.decoder[ID]["data_read_format"]), all_bytes)
         # Now based on the data, seperate out the channels and use the smallest numpy type to fit it in
         #TOFIX: allow for null bytes to be handled elegantly here
@@ -159,6 +160,8 @@ class FileParser():
             temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]-temp["header_size"]})
             temp.update({"data_read_format": "<" + temp["num_packets"]*temp["data"] + temp["num_overflow_bytes"]*"x"})
             temp.update({"num_buffers": 0})  # allocate space to count the number of buffers
+            temp.update({"temp_data": DataBuffer(data=[deque() for char in formatting["data"] if char.lower() != "x"])})
+            
 
             decoder.update({formatting["id"]: temp})
         self.decoder = decoder
