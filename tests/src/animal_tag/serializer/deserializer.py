@@ -5,9 +5,78 @@ import os
 import tqdm
 from json import JSONDecoder
 from collections import deque
+import h5py
 
 import numpy as np
 from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer
+
+
+class FileSaver():
+    def __init__(self, filename: str, decoder: dict, len_chunks: int = 64):
+        self.file = h5py.File(filename, 'w')
+        self.len_chunks = len_chunks
+        self.locs = self.create_datasets(decoder)
+
+    def close_file(self):
+        for key in self.locs:
+            self.file[key]['time'].resize(self.locs[key].ind, axis=0)
+            self.file[key]['data'].resize(self.locs[key].ind, axis=0)
+        self.file.close()
+
+    def save_header(self, header):
+        self._save_header(self.file, header)
+
+    def save_data(self, ID, data_dict):
+        for (time, data) in zip(data_dict['time'], data_dict['data']):
+            self.save_data_chunk(ID, time, data, len(time))
+
+    def save_data_chunk(self, ID, time, data, chunk_size):
+        time_set = self.file[ID]['time']
+        data_set = self.file[ID]['data']
+        if self.locs[ID].size <= self.locs[ID].ind + chunk_size:
+            new_size = 2*time_set.shape[0]
+            time_set.resize(new_size, axis=0)
+            data_set.resize(new_size, axis=0)
+            self.locs[ID].set_size(new_size)
+        self.file[ID]['time'][self.locs[ID].ind:
+                              (self.locs[ID].ind+chunk_size)] = time
+        self.file[ID]['data'][self.locs[ID].ind:
+                              (self.locs[ID].ind+chunk_size), :] = data
+        self.locs[ID].add_ind(chunk_size)
+
+    def _save_header(self, hf, header_dict):
+        for k, v, in header_dict.items():
+            if isinstance(v, dict):
+                g = hf.create_group(k)
+                self._save_header(g, v)
+            else:
+                if v is None:
+                    # need to change None to make it saveable by h5py
+                    v = np.nan
+                hf.create_dataset(k, data=v)
+
+    def create_datasets(self, format_dict):
+        dataset_dict = dict()
+        for dicts in format_dict.values():
+            g = self.file.create_group(dicts.name)
+            d1 = g.create_dataset('time', shape=(self.len_chunks, ),
+                                  maxshape=(None, ),
+                                  chunks=(self.len_chunks, ),
+                                  dtype='d')
+            d1.attrs['units'] = 'sec'
+
+            num_data_channels = len(dicts.data_format)-1
+
+            d2 = g.create_dataset('data', shape=(self.len_chunks,
+                                                 num_data_channels),
+                                  maxshape=(None, num_data_channels),
+                                  chunks=(self.len_chunks, num_data_channels),
+                                  dtype='d')
+            d2.attrs['units'] = dicts.units
+
+            dataset_dict[dicts.name] = SaveFileLoc()
+        return dataset_dict
+
 
 class FileReader:
     def __init__(self, filename: str | Path):
