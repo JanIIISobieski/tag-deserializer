@@ -27,6 +27,8 @@ TYPE_DICT = {"B": np.int8,
              "x": np.nan,
              "T": np.uint64}
 
+MAX_TIME = 2**32 - 1
+MICROSECONDS_IN_A_SECOND = 1e6
 
 def get_packet_size(format : str):
     """Find the size of the data packet
@@ -132,20 +134,28 @@ def unwrapper(values, max_number, bad_frac=0.5):
 
 
 class DataBuffer():
-    def __init__(self, header_data=deque(), header_time=deque(), time=deque(), data=deque()):
-        self.header_data = header_data
-        self.header_time = header_time
-        self.time        = time
-        self.data        = data
+    def __init__(self, header_data=deque(), header_time=deque(), time=deque(), data=deque(), pop_boundry=1280):
+        self.header_data    = header_data
+        self.header_time    = header_time
+        self.time           = time
+        self.data           = data
+        self.time_offset    = 0
+        self.num_buffers    = 0
+        self.num_indices    = 0
+        self.pop_boundry    = pop_boundry
 
     def append_raw_data(self, header_data, header_time, time, data):
         """Extend the underlying data buffer with new data
 
+        IMPORTANT: we assume here that we add one buffer at a time. This is the scheme
+        of the current deserializer. If this ever changes, this function will have to
+        change as well.
+
         Args:
-            header_data (Iterable[Any]): Data coming from the header. Can be empty.
-            header_time (Iterable[Any]): Time data coming from the header. Can be empty.
-            time (Iterable[Any]): Time data associated with sampling. Can be empty.
-            data (Iterable[Any]): Data associated with sampling. Can be empty.
+            header_data (deque[Any]): Data coming from the header. Can be empty.
+            header_time (deque[Any]): Time data coming from the header. Can be empty.
+            time (deque[Any]): Time data associated with sampling. Can be empty.
+            data (deque[Any]): Data associated with sampling. Can be empty.
         """
         if header_data:  # implicitly check if we passed this
             self.extend_header_data(header_data)
@@ -158,6 +168,10 @@ class DataBuffer():
 
         if data:
             self.extend_data(data)
+
+        self.num_buffers += 1
+        
+        return self.num_buffers >= self.pop_boundry
 
     def extend_header_data(self, header_data):
         self.header_data.extend(header_data)
@@ -174,3 +188,47 @@ class DataBuffer():
 
     def extend_data_channel(self, data, channel):
         self.data[channel].extend(data)
+
+    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int):
+        """Number of buffers to pop off the queue ready for writing
+
+        We need to grab the data off of this queue. We will need to
+        create a time vector to associate with the data. We will create
+        it either from the buffer times or from time. Buffer time will
+        give the time at intervals of num_packets (see decoder in
+        deserializer). We will assume constant sampling rate in between
+        the num_packets. If we are given time, then life is easy, as
+        each packet already has time associated with it, so we just
+        grab the time.
+
+        Args:
+            num_buffers_to_pop (int): Number of time indices to pop.
+            num_packets_per_buffer(int): Number of packets per buffer
+
+        Returns:
+            dict: A dictionary with the time and data of the popped buffers
+        """
+        len_data     = num_buffer_to_pop*num_packets_per_buffer
+        num_channels = len(self.data)
+
+        data = np.zeros(shape=(len_data, num_channels))
+
+        #if we only have header_time and not time, use header_time
+        # self.header_time is true if self.header_time is not empty
+        # self.time is true if self.time is not empty
+        if self.header_time and not self.time:
+            #TODO: implement header_buffer calculation for time. Only needed for hydrophone-like things
+            pass
+
+        #if time is an empty deque, this will be false
+        if self.time:
+            pre_time = self.time_offset + np.asarray([ self.time.popleft() for _ in range(len_data) ] )
+
+        # We have popped the times, but now we need to unwrap them if we overflowed
+        time, num_overflows = unwrapper(pre_time, max_number=MAX_TIME, bad_frac=0.5)
+        self.time_offset += num_overflows*MAX_TIME
+
+        for (i, channel_data) in enumerate(self.data):
+            data[:, i] = [ channel_data.popleft() for _ in range(len_data) ]
+
+        return {"time": time/MICROSECONDS_IN_A_SECOND, "data": data}

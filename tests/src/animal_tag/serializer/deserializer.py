@@ -11,16 +11,32 @@ import numpy as np
 from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer
 
 
+class SaveFileLoc():
+    def __init__(self, size):
+        self.size = size
+        self.ind = 0
+
+    def set_size(self, val):
+        self.size = val
+
+    def add_ind(self, val):
+        self.ind += val
+
+
 class FileSaver():
-    def __init__(self, filename: str, decoder: dict, len_chunks: int = 64):
+    def __init__(self, filename: str, decoder: dict = {}, len_chunks: int = 64):
         self.file = h5py.File(filename, 'w')
         self.len_chunks = len_chunks
-        self.locs = self.create_datasets(decoder)
+        if decoder:
+            self.locs = self.create_datasets(decoder)
+        else:
+            self.locs = {}
 
     def close_file(self):
         for key in self.locs:
-            self.file[key]['time'].resize(self.locs[key].ind, axis=0)
-            self.file[key]['data'].resize(self.locs[key].ind, axis=0)
+            if self.locs[key].ind < self.locs[key].size:
+                self.file[key]['time'].resize(self.locs[key].ind, axis=0)
+                self.file[key]['data'].resize(self.locs[key].ind, axis=0)
         self.file.close()
 
     def save_header(self, header):
@@ -55,26 +71,30 @@ class FileSaver():
                     v = np.nan
                 hf.create_dataset(k, data=v)
 
-    def create_datasets(self, format_dict):
+    def create_datasets(self, decoder: dict):
         dataset_dict = dict()
-        for dicts in format_dict.values():
-            g = self.file.create_group(dicts.name)
-            d1 = g.create_dataset('time', shape=(self.len_chunks, ),
-                                  maxshape=(None, ),
+        for dicts in decoder.values():
+            num_samples = dicts["num_data_packets"]*dicts["num_buffers"]
+
+            # TODO: Assign a specific data type to each channel to save space
+            g = self.file.create_group(dicts["device"])
+            d1 = g.create_dataset('time', shape=(num_samples, ),
+                                  maxshape=(num_samples, ),
                                   chunks=(self.len_chunks, ),
                                   dtype='d')
-            d1.attrs['units'] = 'sec'
+            #TODO: Add units
+            #d1.attrs['units'] = 'sec'
 
-            num_data_channels = len(dicts.data_format)-1
+            num_data_channels = len(dicts["channel_names"])
 
-            d2 = g.create_dataset('data', shape=(self.len_chunks,
+            d2 = g.create_dataset('data', shape=(num_samples,
                                                  num_data_channels),
-                                  maxshape=(None, num_data_channels),
+                                  maxshape=(num_samples, num_data_channels),
                                   chunks=(self.len_chunks, num_data_channels),
                                   dtype='d')
-            d2.attrs['units'] = dicts.units
+            #d2.attrs['units'] = dicts.units
 
-            dataset_dict[dicts.name] = SaveFileLoc()
+            dataset_dict[dicts["device"]] = SaveFileLoc(size=num_samples) #we know what the size is
         return dataset_dict
 
 
@@ -134,16 +154,44 @@ class FileReader:
 
 class FileParser():
     def __init__(self, filename: str | Path,
-                 savefilename: str | Path):
+                 savefilename: str | Path,
+                 num_to_pop: int = 1024,
+                 buffer_pop_boundry: int = 1280):
         self.file = FileReader(filename)
+        self.saver = FileSaver(savefilename)
         self.header = {}
         self.decoder = {}  # is populated when file header is read
+        self.data = {}
+        self.num_to_pop = num_to_pop
+        self.buffer_pop_boundry = buffer_pop_boundry
 
-    def process_buffer(self, ID, count, time, data):
-        if self.data[ID].add_raw_data(count, time, data):
-            return self.data[ID].reconstruct(self.header)
+    def process_buffer(self, ID, header_data, header_time, data, time):
+        if self.data[ID].add_raw_data(header_data, header_time, data, time):
+            data_dict, num_popped =  self.data[ID].pop_data(min(self.num_to_pop, self.data[ID]["num_buffs"]), self.decoder[ID]["num_packets"])
+            self.data[ID]["num_buffs"] -= num_popped
+            return data_dict
         else:
             return None
+
+    def initialize_data(self):
+        """Initialize the data buffer based on the decoder for each device
+
+        We need to get the proper channel_size for each decoder. By the way
+        our decoder scheme works, we are able to fully parse each buffer to get
+        the values, no data sample ever stretches across a buffer boundry. This
+        allows us to maximize the rate at which we sample on the hardware, and
+        allows for a simpler deserializing scheme (especially relative to a
+        deserializing scheme that overflows over buffer boundries). As such,
+        all we need to do is to assign data to each channel, and keep track
+        of the number of buffers that were added
+        """
+        for key, value in self.decoder.items():
+            self.data.update({key: {"data": DataBuffer(
+                                        data=[deque() for char in value["data"] if char.lower() != "x"],
+                                        pop_boundry=self.buffer_pop_boundry
+                                        ),
+                                    "num_buffs": 0}
+                            })
 
     def open_file(self):
         self.file.open_file()
@@ -152,18 +200,20 @@ class FileParser():
         self.file.open_file()
         self.header = self.read_file_header() 
         self.generate_decoder()
+        self.saver.create_datasets(self.decoder)
         self.count_buffers()
+        self.initialize_data()
         while self.file.bytes_read < self.file.size:
-            id, count, time, raw_data = self.read_data_buffer()
-            reconstructed_data = self.process_buffer(id, count, time, raw_data)
+            id, header_data, header_time, data, time = self.read_data_buffer()
+            reconstructed_data = self.process_buffer(id, header_data, header_time, data, time)
             if reconstructed_data is not None:
-                self.saver.save_data(self.data[id].name, reconstructed_data)
+                self.saver.save_data(self.decoder[id]["device"], reconstructed_data)
 
         # All file data read, consume whatever data remains unread
-        for id in self.data:
-            reconstructed_data = self.data[id].reconstruct(self.header)
+        for id in self.data.keys():
+            reconstructed_data, _ = self.data[id].pop_data(self.data[id]["num_buffs"], self.decoder[id]["num_packets"])
             if reconstructed_data is not None:
-                self.saver.save_data(self.data[id].name, reconstructed_data)
+                self.saver.save_data(self.data[id]["device"], reconstructed_data)
 
         self.file.close_file()
         self.saver.close_file()
@@ -190,7 +240,7 @@ class FileParser():
         else:  # struct is faster for all other types
             raw_data = struct.unpack(correct_format(self.decoder[ID]["data_read_format"]), all_bytes)
         # Now based on the data, seperate out the channels and use the smallest numpy type to fit it in
-        #TOFIX: allow for null bytes to be handled elegantly here
+        #TODO: allow for null bytes to be handled elegantly here (right now we can only handle data types that do not contain null bytes in sampling)
         data = [raw_data[i:-1:len(self.decoder[ID]["data"])] for i, channel in enumerate(self.decoder[ID]["data"])]  #index the list
         
         if self.decoder[ID]["data_has_time"]:
@@ -207,6 +257,7 @@ class FileParser():
         id = self.read_id()
         [header_data, header_time] = self.read_data_header(id)
         [data, time] = self.read_raw_data_buffer(id)
+        self.data[id]["num_buffs"] += 1  #increment num_buffs
         return (id, header_data, header_time, data, time)
 
     def read_file_header(self):
@@ -229,8 +280,6 @@ class FileParser():
             temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]-temp["header_size"]})
             temp.update({"data_read_format": "<" + temp["num_packets"]*temp["data"] + temp["num_overflow_bytes"]*"x"})
             temp.update({"num_buffers": 0})  # allocate space to count the number of buffers
-            temp.update({"temp_data": DataBuffer(data=[deque() for char in formatting["data"] if char.lower() != "x"])})
-            
 
             decoder.update({formatting["id"]: temp})
         self.decoder = decoder
