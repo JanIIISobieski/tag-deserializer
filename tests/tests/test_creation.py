@@ -112,7 +112,7 @@ def test_bin_file_decoder_creation(write_bin_file):
     # compares to ensure the keys in the decoder matches the available ID
     assert [*fp.decoder.keys()] == [write_bin_file["buffer"].id]
 
-def test_file_preparser(write_bin_file):
+def test_file_buffer_counter(write_bin_file):
     """Test the pre-parsing to count the buffers
 
     Args:
@@ -127,7 +127,7 @@ def test_file_preparser(write_bin_file):
 
     assert fp.decoder[ID[0]]["num_buffers"] == write_bin_file["buffer"].num_buffers
 
-def test_buffer_parse(write_bin_file):
+def test_buffer_data_initialize(write_bin_file):
     """Test the parsing of a buffer
 
     Args:
