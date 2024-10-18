@@ -25,8 +25,12 @@ class SaveFileLoc():
 
 class FileSaver():
     def __init__(self, filename: str, decoder: dict = {}, len_chunks: int = 64):
-        self.file = h5py.File(filename, 'w')
         self.len_chunks = len_chunks
+        if filename:
+            self.file = h5py.File(filename, 'w')
+        else:
+            self.file = ""
+            
         if decoder:
             self.locs = self.create_datasets(decoder)
         else:
@@ -157,16 +161,16 @@ class FileParser():
                  savefilename: str | Path,
                  num_to_pop: int = 1024,
                  buffer_pop_boundry: int = 1280):
-        self.file = FileReader(filename)
-        self.saver = FileSaver(savefilename)
-        self.header = {}
-        self.decoder = {}  # is populated when file header is read
-        self.data = {}
-        self.num_to_pop = num_to_pop
-        self.buffer_pop_boundry = buffer_pop_boundry
+        self.file    : FileReader      = FileReader(filename)
+        self.saver   : FileSaver       = FileSaver(savefilename)
+        self.header  : dict[str, dict] = {}
+        self.decoder : dict[int, dict] = {}  # is populated when file header is read
+        self.data    : dict[int, DataBuffer] = {}
+        self.num_to_pop : int = num_to_pop
+        self.buffer_pop_boundry : int = buffer_pop_boundry
 
     def process_buffer(self, ID, header_data, header_time, data, time):
-        if self.data[ID].add_raw_data(header_data, header_time, data, time):
+        if self.data[ID].append_raw_data(header_data, header_time, data, time):
             data_dict, num_popped =  self.data[ID].pop_data(min(self.num_to_pop, self.data[ID]["num_buffs"]), self.decoder[ID]["num_packets"])
             self.data[ID]["num_buffs"] -= num_popped
             return data_dict

@@ -54,10 +54,11 @@ def write_bin_file(request, tmp_path_factory):
     """
     tmp_folder = tmp_path_factory.mktemp("SingleBuffer")
     bin_file   = tmp_folder / (request.param["filename"])
+    h5_file    = tmp_folder / "Test.h5"
 
     buffer = DataBuffer(bin_file, *request.param["params"])
     buffer.write_file()
-    return {"file": Path(bin_file), "buffer": buffer}
+    return {"file": Path(bin_file), "savefile": h5_file, "buffer": buffer}
 
 
 def test_bin_file_size(write_bin_file):
@@ -82,7 +83,7 @@ def test_bin_file_header_parsing(write_bin_file):
     Args:
         write_bin_file (pytest fixture): file/buffer to check
     """
-    fp = FileParser(write_bin_file["file"], 'Test.h5') 
+    fp = FileParser(write_bin_file["file"], write_bin_file["savefile"]) 
     fp.open_file()
     fp.read_file_header()
 
@@ -100,7 +101,7 @@ def test_bin_file_decoder_creation(write_bin_file):
         write_bin_file (pytest fixture): file and buffer to check
     """
 
-    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp = FileParser(write_bin_file["file"], write_bin_file["savefile"])
     fp.open_file()
     fp.read_file_header()
     fp.generate_decoder()
@@ -118,7 +119,7 @@ def test_file_preparser(write_bin_file):
         write_bin_file (pytest fixture): file and buffer to check
     """
 
-    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp = FileParser(write_bin_file["file"], write_bin_file["savefile"])
     fp.open_file()
     fp.read_file_header()
     fp.generate_decoder()
@@ -132,11 +133,12 @@ def test_buffer_parse(write_bin_file):
     Args:
         write_bin_file (pytest fixture): file and buffer to check
     """
-    fp = FileParser(write_bin_file["file"], 'Test.h5')
+    fp = FileParser(write_bin_file["file"], write_bin_file["savefile"])
     fp.open_file()
     fp.read_file_header()
     fp.generate_decoder()
     fp.count_buffers()
+    fp.initialize_data()
 
     num_buffers = write_bin_file["buffer"].num_buffers
 
