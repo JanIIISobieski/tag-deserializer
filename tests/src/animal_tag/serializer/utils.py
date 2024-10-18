@@ -134,7 +134,7 @@ def unwrapper(values, max_number, bad_frac=0.5):
 
 
 class DataBuffer():
-    def __init__(self, header_data=deque(), header_time=deque(), time=deque(), data=deque(), pop_boundry=1280):
+    def __init__(self, header_data=deque(), header_time=deque(), data=deque(), time=deque(), pop_boundry=1280):
         self.header_data    = header_data
         self.header_time    = header_time
         self.time           = time
@@ -144,7 +144,7 @@ class DataBuffer():
         self.num_indices    = 0
         self.pop_boundry    = pop_boundry
 
-    def append_raw_data(self, header_data, header_time, time, data):
+    def append_raw_data(self, header_data, header_time, data, time):
         """Extend the underlying data buffer with new data
 
         IMPORTANT: we assume here that we add one buffer at a time. This is the scheme
@@ -164,7 +164,7 @@ class DataBuffer():
             self.extend_header_time(header_time)
 
         if time:
-            self.extend_time(self.time)
+            self.extend_time([self.time])
 
         if data:
             self.extend_data(data)
@@ -174,10 +174,10 @@ class DataBuffer():
         return self.num_buffers >= self.pop_boundry
 
     def extend_header_data(self, header_data):
-        self.header_data.extend(header_data)
+        self.header_data.append(header_data)
 
     def extend_header_time(self, header_time):
-        self.header_time.extend(header_time)
+        self.header_time.append(header_time)
 
     def extend_time(self, time):
         self.time.extend(time)
@@ -189,7 +189,7 @@ class DataBuffer():
     def extend_data_channel(self, data, channel):
         self.data[channel].extend(data)
 
-    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int):
+    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int) -> dict[float, float]:
         """Number of buffers to pop off the queue ready for writing
 
         We need to grab the data off of this queue. We will need to
@@ -218,6 +218,7 @@ class DataBuffer():
         # self.time is true if self.time is not empty
         if self.header_time and not self.time:
             #TODO: implement header_buffer calculation for time. Only needed for hydrophone-like things
+            pre_time = self.time_offset + np.repeat( [self.header_time.popleft() for _ in range(num_buffer_to_pop)], num_packets_per_buffer)
             pass
 
         #if time is an empty deque, this will be false
@@ -229,6 +230,7 @@ class DataBuffer():
         self.time_offset += num_overflows*MAX_TIME
 
         for (i, channel_data) in enumerate(self.data):
-            data[:, i] = [ channel_data.popleft() for _ in range(len_data) ]
+            temp = [ channel_data.popleft() for _ in range(len_data) ]
+            data[:, i] = temp
 
         return {"time": time/MICROSECONDS_IN_A_SECOND, "data": data}

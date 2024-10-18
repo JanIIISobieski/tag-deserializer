@@ -149,3 +149,17 @@ def test_buffer_data_initialize(write_bin_file):
         for channels in data:
             for element in channels:
                 assert element == write_bin_file["buffer"].value
+
+def test_buffer_parsing(write_bin_file):
+    """Test the parsing of a buffer
+
+    Args:
+        write_bin_file (pytest fixture): file and buffer to check
+    """
+    parser = FileParser(write_bin_file["file"],
+                        write_bin_file["savefile"],
+                        chunk_size = 64 if write_bin_file["buffer"].buffer_size >= 8000 else 1 )
+    parser.parse()
+
+    # does it run without crashing?
+    assert True   
