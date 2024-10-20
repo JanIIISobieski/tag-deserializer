@@ -133,16 +133,29 @@ def unwrapper(values, max_number, bad_frac=0.5):
     return items, len(large_neg_diffs)
 
 
+class DataWrite:
+    def __init__(self, time, data, chunk_size):
+        self.time = time
+        self.data = data
+        self.chunk_size = chunk_size
+
+    def sub_chunks(self):
+        assert(len(self.time) % self.chunk_size == 0, "Length of time must be a multiple of chunk_size")
+        num_chunks = len(self.time)//self.chunk_size
+        for i in range(num_chunks - 1):
+            yield self.time[self.chunk_size*i : (self.chunk_size*(i+1))], self.data[self.chunk_size*i : (self.chunk_size*(i+1)), :] 
+
+
 class DataBuffer():
-    def __init__(self, header_data=deque(), header_time=deque(), data=deque(), time=deque(), pop_boundry=1280):
+    def __init__(self, header_data=deque(), header_time=deque(), data=deque(), time=deque(), pop_boundry=1280, chunk_size=1):
         self.header_data    = header_data
         self.header_time    = header_time
         self.time           = time
         self.data           = data
         self.time_offset    = 0
         self.num_buffers    = 0
-        self.num_indices    = 0
         self.pop_boundry    = pop_boundry
+        self.chunk_size     = chunk_size
 
     def append_raw_data(self, header_data, header_time, data, time):
         """Extend the underlying data buffer with new data
@@ -233,4 +246,4 @@ class DataBuffer():
             temp = [ channel_data.popleft() for _ in range(len_data) ]
             data[:, i] = temp
 
-        return {"time": time/MICROSECONDS_IN_A_SECOND, "data": data}
+        return DataWrite(time=time/MICROSECONDS_IN_A_SECOND, data=data, chunk_size=self.chunk_size)

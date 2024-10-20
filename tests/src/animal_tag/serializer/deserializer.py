@@ -8,7 +8,7 @@ from collections import deque
 import h5py
 
 import numpy as np
-from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer
+from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer, DataWrite
 
 
 class SaveFileLoc():
@@ -24,8 +24,7 @@ class SaveFileLoc():
 
 
 class FileSaver():
-    def __init__(self, filename: str, decoder: dict = {}, len_chunks: int = 64):
-        self.len_chunks = len_chunks
+    def __init__(self, filename: str, decoder: dict = {}):
         if filename:
             self.file = h5py.File(filename, 'w')
         else:
@@ -45,13 +44,10 @@ class FileSaver():
     def save_header(self, header):
         self._save_header(self.file, header)
 
-    def save_data(self, ID, data_dict):
-        for (time, data) in zip(data_dict['time'], data_dict['data']):
-            if type(time) is np.ndarray:
-                self.save_data_chunk(ID, time, data, len(time))
-            else:
-                self.save_data_chunk(ID, time, data, 1)
-
+    def save_data(self, ID, to_save : DataWrite):
+        for time, data in to_save.sub_chunks():
+            self.save_data_chunk(ID, time, data, len(time))
+            
     def save_data_chunk(self, ID, time, data, chunk_size):
         time_set = self.file[ID]['time']
         data_set = self.file[ID]['data']
@@ -86,7 +82,7 @@ class FileSaver():
             g = self.file.create_group(dicts["device"])
             d1 = g.create_dataset('time', shape=(num_samples, ),
                                   maxshape=(num_samples, ),
-                                  chunks=(self.len_chunks, ),
+                                  chunks=(dicts["num_packets"], ),
                                   dtype='d')
             #TODO: Add units
             #d1.attrs['units'] = 'sec'
@@ -96,7 +92,7 @@ class FileSaver():
             d2 = g.create_dataset('data', shape=(num_samples,
                                                  num_data_channels),
                                   maxshape=(num_samples, num_data_channels),
-                                  chunks=(self.len_chunks, num_data_channels),
+                                  chunks=(dicts["num_packets"], num_data_channels),
                                   dtype='d')
             #d2.attrs['units'] = dicts.units
 
@@ -162,10 +158,9 @@ class FileParser():
     def __init__(self, filename: str | Path,
                  savefilename : str | Path,
                  num_to_pop : int = 1024,
-                 buffer_pop_boundry : int = 1280,
-                 chunk_size : int = 64):
+                 buffer_pop_boundry : int = 1280):
         self.file    : FileReader      = FileReader(filename)
-        self.saver   : FileSaver       = FileSaver(savefilename, len_chunks=chunk_size)
+        self.saver   : FileSaver       = FileSaver(savefilename)
         self.header  : dict[str, dict] = {}
         self.decoder : dict[int, dict] = {}  # is populated when file header is read
         self.data    : dict[int, DataBuffer] = {}
@@ -195,7 +190,8 @@ class FileParser():
         """
         for key, value in self.decoder.items():
             empty_buffer = DataBuffer(data=[deque() for char in value["data"] if char.lower() != "x"],
-                                      pop_boundry=self.buffer_pop_boundry)
+                                      pop_boundry=self.buffer_pop_boundry,
+                                      chunk_size=value["num_packets"])
             self.data.update({key: {"data": empty_buffer,
                                     "num_buffs": 0}
                             })

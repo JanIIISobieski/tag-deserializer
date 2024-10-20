@@ -157,8 +157,7 @@ def test_buffer_parsing(write_bin_file):
         write_bin_file (pytest fixture): file and buffer to check
     """
     parser = FileParser(write_bin_file["file"],
-                        write_bin_file["savefile"],
-                        chunk_size = 64 if write_bin_file["buffer"].buffer_size >= 8000 else 1 )
+                        write_bin_file["savefile"])
     parser.parse()
 
     # does it run without crashing?
