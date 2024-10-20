@@ -2,6 +2,8 @@ import pytest
 from pathlib import Path
 
 import itertools
+import h5py
+from numpy import nditer
 
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
@@ -160,5 +162,10 @@ def test_buffer_parsing(write_bin_file):
                         write_bin_file["savefile"])
     parser.parse()
 
-    # does it run without crashing?
-    assert True   
+    with h5py.File(write_bin_file["savefile"], "r") as f:
+        time = f['test']['time'][:]
+        data = f['test']['data'][:]
+        for t in time:
+            assert int(1e6*t % write_bin_file["buffer"].time) == 0
+        for d in data.flat:
+            assert d == write_bin_file["buffer"].value
