@@ -7,7 +7,7 @@ import numpy as np
 
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
-from animal_tag.serializer.utils import get_packet_size, count_data_channels
+from animal_tag.serializer.utils import get_packet_size, count_data_channels, import_external_header
 
 ID        = [1]
 HEADER    = ["BTx"]
@@ -171,3 +171,12 @@ def test_buffer_parsing(write_bin_file):
         assert all(np.diff(time) > 0)
         for d in data.flat:
             assert d == write_bin_file["buffer"].value
+
+def test_external_header_parsing(write_bin_file):
+    file_path = "/home/gabriel/Documents/mtag-deserializinator-inator/tests/src/animal_tag/serializer/test_header.txt"
+
+    fp = FileParser(write_bin_file["file"], write_bin_file["savefile"]) # we just want a dummy file here to see if we can import a decoder
+    fp.header = import_external_header(file_path)
+    fp.generate_decoder()
+
+    assert True

@@ -1,5 +1,8 @@
 import numpy as np
 from collections import deque 
+from pathlib import Path
+from os import stat
+from json import JSONDecoder
 
 # Stores the mapping from MTAG key to the size of the key
 SIZE_DICT = {"B": 1, "b": 1, # int_8 and uint_8
@@ -75,6 +78,7 @@ def correct_format(format : str):
     """
     return format.replace("T", "I")
 
+
 def count_data_channels(format : str):
     """Count the number of data and time channels in a format
 
@@ -149,6 +153,22 @@ def unwrapper(values, max_number, bad_frac=0.5):
 
     return items, len(large_neg_diffs)
 
+
+def import_external_header(filename : str | Path):
+    """Imports external header for parsing
+
+    Args:
+        filename (str | Path): Filename of the new header
+
+    Returns:
+        dict: Dictionary representation of the header
+    """
+    file_size = stat(filename).st_size
+    decoder = JSONDecoder()
+    with open(filename, 'r') as f:
+        data = f.read(file_size)
+        header = decoder.decode(data)
+    return header
 
 class DataWrite:
     def __init__(self, time, data, chunk_size):
@@ -248,7 +268,6 @@ class DataBuffer():
         # self.header_time is true if self.header_time is not empty
         # self.time is true if self.time is not empty
         if self.header_time and not self.time:
-            #TODO: implement header_buffer calculation for time. Only needed for hydrophone-like things
             popped_times = [self.last_time]
             popped_times.extend([self.header_time.popleft() for _ in range(num_buffer_to_pop)])
             # We have popped the times, but now we need to unwrap them if we overflowed

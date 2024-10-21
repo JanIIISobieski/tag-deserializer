@@ -2,6 +2,8 @@ import pytest
 import pytest_benchmark
 import struct
 import rawutil
+from animal_tag.serializer.utils import import_external_header
+from animal_tag.serializer.deserializer import FileParser
 
 def test_simple_parser():
     test_bytes = b'\x01\x02'
@@ -44,3 +46,9 @@ def test_simple_rawutils_benchmark(benchmark):
     test_bytes = struct.pack(parsing, *orig_vals)
     vals = benchmark(rawutils_unpack, parsing, test_bytes)
     assert vals == orig_vals
+
+def test_external_header():
+    file_path = "/home/gabriel/Documents/mtag-deserializinator-inator/tests/src/animal_tag/serializer/test_header.txt"
+    header = import_external_header(file_path)
+
+    assert len(header.keys()) == 2

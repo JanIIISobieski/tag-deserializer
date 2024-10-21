@@ -9,7 +9,8 @@ import h5py
 
 import numpy as np
 from animal_tag.serializer.utils import (get_packet_size, correct_format,
-                                         count_data_channels, DataBuffer, DataWrite)
+                                         count_data_channels, import_external_header,
+                                         DataBuffer, DataWrite)
 
 
 class SaveFileLoc():
@@ -202,9 +203,12 @@ class FileParser():
     def open_file(self):
         self.file.open_file()
 
-    def parse(self):
+    def parse(self, header_file : str | Path = ""):
         self.file.open_file()
-        self.header = self.read_file_header() 
+        if header_file: # check if passed, then we grab header file from here
+            self.header = import_external_header(header_file)
+        else:
+            self.header = self.read_file_header() 
         self.generate_decoder()
         self.count_buffers()
         self.saver.create_datasets(self.decoder)
@@ -277,7 +281,7 @@ class FileParser():
 
     def generate_decoder(self):
         decoder = {}
-        for (device_name, formatting) in self.header["buffers"].items():
+        for device_name, formatting in self.header["buffers"].items():
             temp = formatting.copy()  # = as assignment is a refernce copy (editing temp also edits formatting), rather than a deep copy allowing for seperate editing of temp and formatting
             temp.update({"device": device_name})
             del temp["id"]
