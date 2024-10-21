@@ -8,7 +8,8 @@ from collections import deque
 import h5py
 
 import numpy as np
-from animal_tag.serializer.utils import get_packet_size, correct_format, DataBuffer, DataWrite
+from animal_tag.serializer.utils import (get_packet_size, correct_format,
+                                         count_data_channels, DataBuffer, DataWrite)
 
 
 class SaveFileLoc():
@@ -170,7 +171,9 @@ class FileParser():
 
     def process_buffer(self, ID, header_data, header_time, data, time):
         if self.data[ID]["data"].append_raw_data(header_data, header_time, data, time):
-            data_dict, num_popped =  self.data[ID]["data"].pop_data(min(self.num_to_pop, self.data[ID]["num_buffs"]), self.decoder[ID]["num_packets"])
+            data_dict, num_popped =  self.data[ID]["data"].pop_data(min(self.num_to_pop, self.data[ID]["num_buffs"]),
+                                                                    self.decoder[ID]["num_packets"],
+                                                                    self.decoder[ID]["num_channels"])
             self.data[ID]["num_buffs"] -= num_popped
             return data_dict
         else:
@@ -189,12 +192,12 @@ class FileParser():
         of the number of buffers that were added
         """
         for key, value in self.decoder.items():
-            empty_buffer = DataBuffer(data=[deque() for char in value["data"] if char.lower() != "x"],
+            empty_buffer = DataBuffer(data=[deque() for char in value["data"] if char.lower() != "x" and char.lower() != "t"],
                                       pop_boundry=self.buffer_pop_boundry,
                                       chunk_size=value["num_packets"])
             self.data.update({key: {"data": empty_buffer,
                                     "num_buffs": 0}
-                            })
+                             })
 
     def open_file(self):
         self.file.open_file()
@@ -216,7 +219,9 @@ class FileParser():
 
         # All file data read, consume whatever data remains unread
         for id in self.data.keys():
-            reconstructed_data = self.data[id]["data"].pop_data(self.data[id]["num_buffs"], self.decoder[id]["num_packets"])
+            reconstructed_data = self.data[id]["data"].pop_data(self.data[id]["num_buffs"],
+                                                                self.decoder[id]["num_packets"],
+                                                                self.decoder[id]["num_channels"])
             self.saver.save_data(self.decoder[id]["device"], reconstructed_data)
 
         self.file.close_file()
@@ -284,6 +289,8 @@ class FileParser():
             temp.update({"num_overflow_bytes": formatting["buffer_size"]-temp["num_packets"]*temp["data_packet_size"]-temp["header_size"]})
             temp.update({"data_read_format": "<" + temp["num_packets"]*temp["data"] + temp["num_overflow_bytes"]*"x"})
             temp.update({"num_buffers": 0})  # allocate space to count the number of buffers
+            num_data_channels, _ = count_data_channels(formatting["data"])
+            temp.update({"num_channels": num_data_channels})
 
             decoder.update({formatting["id"]: temp})
         self.decoder = decoder

@@ -3,16 +3,16 @@ from pathlib import Path
 
 import itertools
 import h5py
-from numpy import nditer
+import numpy as np
 
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
-from animal_tag.serializer.utils import get_packet_size
+from animal_tag.serializer.utils import get_packet_size, count_data_channels
 
 ID        = [1]
 HEADER    = ["BTx"]
-DATA      = ["H", "HB"]
-SIZE      = [10, 8192]
+DATA      = ["H", "HB", "TH"]
+SIZE      = [12, 8192]
 VAL       = [2]
 TIME      = [4093]
 CH_SP     = [True, False]
@@ -143,11 +143,12 @@ def test_buffer_data_initialize(write_bin_file):
     fp.initialize_data()
 
     num_buffers = write_bin_file["buffer"].num_buffers
+    expected_num_data_channels, _ = count_data_channels(write_bin_file["buffer"].data_format)
 
     for i in range(num_buffers):
         (id, header_data, header_time, data, time) = fp.read_data_buffer()
         assert header_time % write_bin_file["buffer"].time == 0
-        assert len(data) == len(write_bin_file["buffer"].data_format)
+        assert len(data) == expected_num_data_channels
         for channels in data:
             for element in channels:
                 assert element == write_bin_file["buffer"].value
@@ -165,7 +166,8 @@ def test_buffer_parsing(write_bin_file):
     with h5py.File(write_bin_file["savefile"], "r") as f:
         time = f['test']['time'][:]
         data = f['test']['data'][:]
-        for t in time:
-            assert int(1e6*t % write_bin_file["buffer"].time) == 0
+        assert len(time) > 0
+        assert len(data) > 0
+        assert all(np.diff(time) > 0)
         for d in data.flat:
             assert d == write_bin_file["buffer"].value

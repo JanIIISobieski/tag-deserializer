@@ -3,7 +3,7 @@ import argparse
 import json
 
 from animal_tag.serializer.utils import get_packet_size
-
+from numpy import linspace
 
 class DataBuffer:
     def __init__(self, output_file : str, id : int, time : int, header_format : str,
@@ -27,6 +27,7 @@ class DataBuffer:
         """
         self.output_file = output_file
         self.id = id
+        self.last_time = 0
         self.time = time
         self.header_format = header_format
         self.data_format = data_format
@@ -82,13 +83,15 @@ class DataBuffer:
 
         for i in range(num_reps):
             temp_data = [value if char != 'x' else 0 for char in data_format]
+            t_offset  = linspace(start=self.time, stop=0, num=(num_reps+1))[1:]
             if data_format.find('T') != -1:  # this function gives -1 on failure, which if it does we can ignore the case
-                temp_data[data_format.find('T')] = int(time + (i+1)*self.time/num_reps)
+                temp_data[data_format.find('T')] = int(time - t_offset[i])
             buffer += struct.pack("<"+self._correct_format(data_format), *temp_data)  # we need to go from the MTAG format to the struct/rawutils format
             # we need to pass as seperate arguments each element of temp_data, thus the use of the * operator
         buffer += struct.pack("<"+bytes_underflow*"B", *([0 for _ in range(bytes_underflow)]))  # similar as above, keeps the code concise here
 
         return buffer
+
 
     def create_buffer_header(self, header_format : str, id : int, time: int):
         """Create the binary header for each data buffer in the MTAG format

@@ -75,6 +75,23 @@ def correct_format(format : str):
     """
     return format.replace("T", "I")
 
+def count_data_channels(format : str):
+    """Count the number of data and time channels in a format
+
+    Args:
+        format (str): Format string of the data
+
+    Returns:
+        tuple[int]: The number of data channels and number of time channels
+    """
+    data_channels = len(format)
+    time_channels = 0
+    if format.find("T") != -1:
+        data_channels -= 1
+        time_channels += 1
+    return data_channels, time_channels
+
+
 def unwrapper(values, max_number, bad_frac=0.5):
     """
     Function to unwrap unsigned integers
@@ -142,7 +159,7 @@ class DataWrite:
     def sub_chunks(self):
         assert(len(self.time) % self.chunk_size == 0, "Length of time must be a multiple of chunk_size")
         num_chunks = len(self.time)//self.chunk_size
-        for i in range(num_chunks - 1):
+        for i in range(num_chunks):
             yield self.time[self.chunk_size*i : (self.chunk_size*(i+1))], self.data[self.chunk_size*i : (self.chunk_size*(i+1)), :] 
 
 
@@ -154,6 +171,7 @@ class DataBuffer():
         self.data           = data
         self.time_offset    = 0
         self.num_buffers    = 0
+        self.last_time      = 0
         self.pop_boundry    = pop_boundry
         self.chunk_size     = chunk_size
 
@@ -177,7 +195,7 @@ class DataBuffer():
             self.extend_header_time(header_time)
 
         if time:
-            self.extend_time([self.time])
+            self.extend_time(time)
 
         if data:
             self.extend_data(data)
@@ -202,7 +220,7 @@ class DataBuffer():
     def extend_data_channel(self, data, channel):
         self.data[channel].extend(data)
 
-    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int) -> dict[float, float]:
+    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int, num_channels : int) -> dict[float, float]:
         """Number of buffers to pop off the queue ready for writing
 
         We need to grab the data off of this queue. We will need to
@@ -217,12 +235,12 @@ class DataBuffer():
         Args:
             num_buffers_to_pop (int): Number of time indices to pop.
             num_packets_per_buffer(int): Number of packets per buffer
+            num_channels(int): The number of data channels per sampling event
 
         Returns:
             dict: A dictionary with the time and data of the popped buffers
         """
         len_data     = num_buffer_to_pop*num_packets_per_buffer
-        num_channels = len(self.data)
 
         data = np.zeros(shape=(len_data, num_channels))
 
@@ -231,15 +249,23 @@ class DataBuffer():
         # self.time is true if self.time is not empty
         if self.header_time and not self.time:
             #TODO: implement header_buffer calculation for time. Only needed for hydrophone-like things
-            pre_time = self.time_offset + np.repeat( [self.header_time.popleft() for _ in range(num_buffer_to_pop)], num_packets_per_buffer)
-            pass
-
+            popped_times = [self.last_time]
+            popped_times.extend([self.header_time.popleft() for _ in range(num_buffer_to_pop)])
+            # We have popped the times, but now we need to unwrap them if we overflowed
+            pre_time, num_overflows = unwrapper(popped_times, max_number=MAX_TIME, bad_frac=0.5)            
+            time     = np.zeros(shape=(num_packets_per_buffer*num_buffer_to_pop, ))
+            # We assume a constant sampling rate in between the buffers. So we can reinterpolate between the time bounds
+            for i in range(num_buffer_to_pop):
+                time[i*num_packets_per_buffer : (i+1)*num_packets_per_buffer] = np.linspace(popped_times[i], popped_times[i+1], num_packets_per_buffer+1)[1:]
+            self.last_time = time[-1]
+            
+ 
         #if time is an empty deque, this will be false
         if self.time:
             pre_time = self.time_offset + np.asarray([ self.time.popleft() for _ in range(len_data) ] )
+            # We have popped the times, but now we need to unwrap them if we overflowed
+            time, num_overflows = unwrapper(pre_time, max_number=MAX_TIME, bad_frac=0.5)
 
-        # We have popped the times, but now we need to unwrap them if we overflowed
-        time, num_overflows = unwrapper(pre_time, max_number=MAX_TIME, bad_frac=0.5)
         self.time_offset += num_overflows*MAX_TIME
 
         for (i, channel_data) in enumerate(self.data):
