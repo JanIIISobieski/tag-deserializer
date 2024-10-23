@@ -80,6 +80,9 @@ class FileSaver():
         for dicts in decoder.values():
             num_samples = dicts["num_packets"]*dicts["num_buffers"]
 
+            if num_samples == 0:
+                continue  #skip if we don't actually have this in the buffer system
+
             # TODO: Assign a specific data type to each channel to save space
             g = self.file.create_group(dicts["device"])
             d1 = g.create_dataset('time', shape=(num_samples, ),
@@ -172,11 +175,12 @@ class FileParser():
 
     def process_buffer(self, ID, header_data, header_time, data, time):
         if self.data[ID]["data"].append_raw_data(header_data, header_time, data, time):
-            data_dict, num_popped =  self.data[ID]["data"].pop_data(min(self.num_to_pop, self.data[ID]["num_buffs"]),
-                                                                    self.decoder[ID]["num_packets"],
-                                                                    self.decoder[ID]["num_channels"])
+            num_popped = min(self.num_to_pop, self.data[ID]["num_buffs"])
+            reconstructed_data = self.data[ID]["data"].pop_data(num_popped,
+                                                                self.decoder[ID]["num_packets"],
+                                                                self.decoder[ID]["num_channels"])
             self.data[ID]["num_buffs"] -= num_popped
-            return data_dict
+            return reconstructed_data
         else:
             return None
 
@@ -223,10 +227,11 @@ class FileParser():
 
         # All file data read, consume whatever data remains unread
         for id in self.data.keys():
-            reconstructed_data = self.data[id]["data"].pop_data(self.data[id]["num_buffs"],
-                                                                self.decoder[id]["num_packets"],
-                                                                self.decoder[id]["num_channels"])
-            self.saver.save_data(self.decoder[id]["device"], reconstructed_data)
+            if self.data[id]["num_buffs"] > 0:  #ensure there actually is data to pop here, otherwise error would be thrown
+                reconstructed_data = self.data[id]["data"].pop_data(self.data[id]["num_buffs"],
+                                                                    self.decoder[id]["num_packets"],
+                                                                    self.decoder[id]["num_channels"])
+                self.saver.save_data(self.decoder[id]["device"], reconstructed_data)
 
         self.file.close_file()
         self.saver.close_file()

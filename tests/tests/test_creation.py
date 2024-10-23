@@ -180,3 +180,27 @@ def test_external_header_parsing(write_bin_file):
     fp.generate_decoder()
 
     assert True
+
+def test_real_file():
+    file_root = "/home/gabriel/Documents/TestMTAG2/"
+    file      = "HawaiiTest2.bin"
+    header    = "test_header.txt"
+    save_file = "Deserialized.h5"
+
+    fp = FileParser(file_root + file,
+                    file_root + save_file)
+    fp.parse(file_root + header)
+
+    assert True
+
+def test_longer_real_file():
+    file_root = "/home/gabriel/Documents/TestMTAG2/"
+    file      = "MTAG2-Hua-LS.bin"
+    header    = "test_header.txt"
+    save_file = "MTAG2-Hua-LS.h5"
+
+    fp = FileParser(file_root + file,
+                    file_root + save_file)
+    fp.parse(file_root + header)
+
+    assert True
