@@ -1,0 +1,19 @@
+{"metadata": {"name": "Gabriel",
+              "species": "Homo sapiens",
+              "date": "1995-10-26 14:15:00"},
+ "buffers": {"IMU": {"id": 4,
+                     "header": "BTx",
+                     "split_channel": false,
+                     "data": "Thhhhhhhhhh",
+                     "buffer_size": 8192,
+                     "channel_names": ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z", "mag_x", "mag_y", "mag_z", "temp"]
+                     },
+             "Locs": {"id": 2,
+                      "header": "BTx",
+                      "split_channel": true,
+                      "data": "Tffh",
+                      "buffer_size": 8192,
+                      "channel_names": ["pressure", "temperature", "spin_count"]
+                      }
+              }
+}

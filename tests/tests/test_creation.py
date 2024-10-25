@@ -20,6 +20,7 @@ NUM_BUFF  = [1, 2, 3, 4]
 METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}]
 BUFF_NAME = ["test"]
 
+THIS_DIR = Path(__file__).parent
 
 def get_buffer_combinations():
     """For the given global variables, give all possible permutations of the inputs
@@ -173,8 +174,9 @@ def test_buffer_parsing(write_bin_file):
             assert d == write_bin_file["buffer"].value
 
 def test_external_header_parsing(write_bin_file):
-    file_path = "/home/gabriel/Documents/mtag-deserializinator-inator/tests/src/animal_tag/serializer/test_header.txt"
+    file_path = THIS_DIR / "Data/test_header.txt"
 
+    # A little dirty since we repeat this test an unnecessary amount of times, but gooed enough for now
     fp = FileParser(write_bin_file["file"], write_bin_file["savefile"]) # we just want a dummy file here to see if we can import a decoder
     fp.header = import_external_header(file_path)
     fp.generate_decoder()
@@ -193,14 +195,12 @@ def test_real_file():
 
     assert True
 
-def test_longer_real_file():
-    file_root = "/home/gabriel/Documents/TestMTAG2/"
-    file      = "MTAG2-Hua-LS.bin"
-    header    = "test_header.txt"
-    save_file = "MTAG2-Hua-LS.h5"
+def test_longer_real_file_external_header(tmp_path_factory):
+    file      = THIS_DIR / "Data/MTAG2-Hua-LS.bin"
+    header    = THIS_DIR / "Data/test_header.txt"
+    save_file = tmp_path_factory.mktemp("real_file_external_header") / "MTAG2-Hua-LS.h5"
 
-    fp = FileParser(file_root + file,
-                    file_root + save_file)
-    fp.parse(file_root + header)
+    fp = FileParser(file, save_file)
+    fp.parse(header)
 
     assert True
