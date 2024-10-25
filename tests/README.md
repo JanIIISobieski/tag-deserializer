@@ -95,7 +95,7 @@ The header contains two main parts:
     * __time__: Time the buffer was filled and sent to the SD card for saving
     * __header__: format for the header
     * __data__: format of the data
-    * __split_channel__: boolean, either True or False. If True, each data channel will be split into a seperate groups in the final h5 file. If false, all the channels will be placed into a seperate file.
+    * __split_channel__: boolean, either True or False. If True, each data channel will be split into a seperate groups in the final h5 file. If false, all the channels will be placed into a seperate file. NOT CURRENTLY IMPLEMENTED.
     * __channel_names__: The name of each channel of data
     * __buffer_size__: The overall buffer size, i.e. size of the header + size of the data
 
