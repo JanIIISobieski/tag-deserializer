@@ -16,7 +16,7 @@ SIZE      = [12, 8192]
 VAL       = [2]
 TIME      = [4093]
 CH_SP     = [True, False]
-NUM_BUFF  = [1, 2, 3, 4]
+NUM_BUFF  = [1, 5, 1280]
 METADATA  = [{"name": "Gabriel", "species": "Homo sapiens", "date": "1995-10-26 14:15:00"}]
 BUFF_NAME = ["test"]
 
@@ -199,6 +199,16 @@ def test_longer_real_file_external_header(tmp_path_factory):
     file      = THIS_DIR / "Data/MTAG2-Hua-LS.bin"
     header    = THIS_DIR / "Data/test_header.txt"
     save_file = tmp_path_factory.mktemp("real_file_external_header") / "MTAG2-Hua-LS.h5"
+
+    fp = FileParser(file, save_file)
+    fp.parse(header)
+
+    assert True
+
+def test_unwrap_times_real_file_external_header(tmp_path_factory):
+    file      = THIS_DIR / "Data/MTAG2-Hua-LS-Long.bin"
+    header    = THIS_DIR / "Data/test_header.txt"
+    save_file = tmp_path_factory.mktemp("real_file_external_header") / "MTAG2-Hua-LS-Long.h5"
 
     fp = FileParser(file, save_file)
     fp.parse(header)

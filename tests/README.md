@@ -114,3 +114,40 @@ One of the packags we are using here is pytest-benchmark, which allows for bench
 We can run these checks by running `pytest -v`, which is a verbose output of pytest.
 This will run both all the unit tests, and also the benchmarks.
 Benchmarks can be easily identified in the code by taking a look at any functions beginning with `test_` that have `benchmark` as a function input. 
+
+## Python Profiling
+`pytest --profile` will run function profiling to see where the time is being spent for running the functions. Useful for identifying bottlenecks in running the tag functions.
+
+## Python Test Profiling Results
+Might have to rewrite the tests to pre-make the files so that they exist and are already written, otherwise we will waste time remaking files that are quite costly to create... 
+```
+Profiling (from /home/gabriel/Documents/mtag-deserializinator-inator/tests/prof/combined.prof):
+Mon Oct 28 21:56:50 2024    /home/gabriel/Documents/mtag-deserializinator-inator/tests/prof/combined.prof
+
+         301825221 function calls (301825049 primitive calls) in 492.455 seconds
+
+   Ordered by: cumulative time
+   List reduced from 724 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+      4/3    0.000    0.000  492.452  164.151 runner.py:226(call_and_report)
+    21/11    0.000    0.000  492.452   44.768 _hooks.py:498(__call__)
+    20/11    0.000    0.000  492.451   44.768 _manager.py:111(_hookexec)
+    20/11    0.000    0.000  492.451   44.768 _callers.py:53(_multicall)
+      4/3    0.000    0.000  492.451  164.150 runner.py:319(from_call)
+      4/3    0.000    0.000  492.451  164.150 runner.py:242(<lambda>)
+        1    0.000    0.000  492.443  492.443 runner.py:158(pytest_runtest_setup)
+        1    0.000    0.000  492.443  492.443 runner.py:498(setup)
+        1    0.000    0.000  492.443  492.443 python.py:1629(setup)
+        1    0.000    0.000  492.443  492.443 fixtures.py:692(_fillfixtures)
+      6/3    0.000    0.000  492.443  164.148 fixtures.py:509(getfixturevalue)
+      9/3    0.000    0.000  492.443  164.148 fixtures.py:548(_get_active_fixturedef)
+      2/1    0.000    0.000  492.443  492.443 fixtures.py:1036(execute)
+        2    0.000    0.000  492.443  246.221 fixtures.py:1128(pytest_fixture_setup)
+        2    0.000    0.000  492.443  246.221 fixtures.py:881(call_fixture_func)
+        1    0.000    0.000  492.443  492.443 test_creation.py:47(write_bin_file)
+        1   47.786   47.786  492.440  492.440 buffer_generator.py:112(write_file)
+     4096   62.808    0.015  444.586    0.109 buffer_generator.py:62(create_buffer)
+ 16764928  219.399    0.000  347.108    0.000 function_base.py:25(linspace)
+ 16764928   71.974    0.000   71.974    0.000 {built-in method numpy.arange}
+```

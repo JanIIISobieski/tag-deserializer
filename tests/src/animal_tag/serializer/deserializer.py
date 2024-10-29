@@ -200,6 +200,9 @@ class FileParser():
             empty_buffer = DataBuffer(data=[deque() for char in value["data"] if char.lower() != "x" and char.lower() != "t"],
                                       pop_boundry=self.buffer_pop_boundry,
                                       chunk_size=value["num_packets"])
+            empty_buffer.reset()  # forcefully clear any data, suspect some scoping error within pytest perhaps
+                                  # or how the variables are created, occassionally these would contain data
+                                  # With these lines incorporated, tests do not really have an issue of passing
             self.data.update({key: {"data": empty_buffer,
                                     "num_buffs": 0}
                              })

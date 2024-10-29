@@ -98,7 +98,7 @@ def count_data_channels(format : str):
 
 def unwrapper(values, max_number, bad_frac=0.5):
     """
-    Function to unwrap unsigned integers
+    Function to unwrap unsigned integers, like time or buffer counts (if buffer counts are used)
 
     Parameters
     ----------
@@ -222,6 +222,9 @@ class DataBuffer():
 
         self.num_buffers += 1
         
+        if self.num_buffers != len(self.header_time):
+            raise AssertionError("Num buffers should be equal to length of header_time")
+
         return self.num_buffers >= self.pop_boundry
 
     def extend_header_data(self, header_data):
@@ -240,7 +243,7 @@ class DataBuffer():
     def extend_data_channel(self, data, channel):
         self.data[channel].extend(data)
 
-    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int, num_channels : int) -> dict[float, float]:
+    def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int, num_channels : int) -> DataWrite:
         """Number of buffers to pop off the queue ready for writing
 
         We need to grab the data off of this queue. We will need to
@@ -277,13 +280,18 @@ class DataBuffer():
             for i in range(num_buffer_to_pop):
                 time[i*num_packets_per_buffer : (i+1)*num_packets_per_buffer] = np.linspace(popped_times[i], popped_times[i+1], num_packets_per_buffer+1)[1:]
             self.last_time = time[-1]
-            
- 
-        #if time is an empty deque, this will be false
-        if self.time:
+        elif self.time: #if time is an empty deque, this will be false
             pre_time = self.time_offset + np.asarray([ self.time.popleft() for _ in range(len_data) ] )
             # We have popped the times, but now we need to unwrap them if we overflowed
             time, num_overflows = unwrapper(pre_time, max_number=MAX_TIME, bad_frac=0.5)
+            # IMPORTANT: for this case, it is possible to have header_time, we are just not using it.
+            # And so, we must pop the times to ensure that we don't overfill the deque and take up
+            # valuable space
+            if self.header_time:
+                for _ in range(num_buffer_to_pop):
+                    self.header_time.popleft()
+        else:  # where has the time gone... it is not in the buffer
+            raise("We have no way to get time, passed in neither header nor with data\n")
 
         self.time_offset += num_overflows*MAX_TIME
 
@@ -291,4 +299,13 @@ class DataBuffer():
             temp = [ channel_data.popleft() for _ in range(len_data) ]
             data[:, i] = temp
 
+        self.num_buffers -= num_buffer_to_pop
+
         return DataWrite(time=time/MICROSECONDS_IN_A_SECOND, data=data, chunk_size=self.chunk_size)
+    
+    def reset(self):
+        self.header_time = deque()
+        self.header_data = deque()
+        self.time        = deque()
+        for (i, _) in enumerate(self.data):
+            self.data[i] = deque()
