@@ -5,8 +5,6 @@ import rawutil
 from animal_tag.serializer.utils import import_external_header
 from collections import deque
 from itertools import starmap, repeat
-from collections.abc import Iterable
-from typing import Any
 
 from pathlib import Path
 
@@ -60,20 +58,11 @@ def test_external_header():
 
     assert len(header.keys()) == 2
 
-def pop_enumerate(n : int) -> Iterable[Any]:
-    x = deque([i for i in range(1280)])
-    return [x.popleft() for _ in range(n)]
+def test_deque_extension():
+    dq_len = 10
+    dq = deque([i for i in range(dq_len)])
+    array = []
 
-def pop_starmap(n : int) -> Iterable[Any]:
-    x = deque([i for i in range(1280)])
-    return list(starmap(x.popleft, repeat((), n)))
-
-def test_deque_popleft_array_func(benchmark):
-    vals = benchmark(pop_enumerate, 1024)
-
-    assert len(vals) == 1024
-
-def test_deque_starmap_pop(benchmark):
-    vals = benchmark(pop_starmap, 1024)
-
-    assert len(vals) == 1024
+    array.extend(starmap(dq.popleft, repeat((), dq_len)))
+    assert len(array) == dq_len
+    assert len(dq) == 0

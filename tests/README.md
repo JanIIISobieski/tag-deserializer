@@ -119,10 +119,10 @@ Benchmarks can be easily identified in the code by taking a look at any function
 `pytest --profile` will run function profiling to see where the time is being spent for running the functions. Useful for identifying bottlenecks in running the tag functions.
 
 ## Python Benchmarking:
-  * starmap pop is faster than using list comprehension
+  * starmap pop is faster than using list comprehension for larger numbers of pops (>=512) from a deque. For smaller numbers of pops, array comprehension is faster (see `test_popping.py`)
 
 ## Python Test Profiling Results
-Might have to rewrite the tests to pre-make the files so that they exist and are already written, otherwise we will waste time remaking files that are quite costly to create... 
+Might have to rewrite the tests to pre-make the files so that they exist and are already written, otherwise we will waste time remaking files that are quite costly to create each test run... On the other hand, only takes about 5 min.
 ```
 Profiling (from /home/gabriel/Documents/mtag-deserializinator-inator/tests/prof/combined.prof):
 Mon Oct 28 21:56:50 2024    /home/gabriel/Documents/mtag-deserializinator-inator/tests/prof/combined.prof

@@ -3,6 +3,7 @@ from collections import deque
 from pathlib import Path
 from os import stat
 from json import JSONDecoder
+from itertools import starmap, repeat, islice
 
 # Stores the mapping from MTAG key to the size of the key
 SIZE_DICT = {"B": 1, "b": 1, # int_8 and uint_8
@@ -32,6 +33,8 @@ TYPE_DICT = {"B": np.int8,
 
 MAX_TIME = 2**32 - 1
 MICROSECONDS_IN_A_SECOND = 1e6
+
+POPPER = lambda d, n: starmap(d.popleft, repeat((), n))
 
 def get_packet_size(format : str):
     """Find the size of the data packet
@@ -94,6 +97,19 @@ def count_data_channels(format : str):
         data_channels -= 1
         time_channels += 1
     return data_channels, time_channels
+
+
+def consume(iter, n=None):
+    """Consume as fast as possible the iterable
+
+    Args:
+        iter (Iterable[Any]): Iterable to consume.
+        n (int, optional): Number of elements to consume. Defaults to None. If is None, entirety of the iterator will be consumed.
+    """
+    if n is None:
+        deque(iter, maxlen=0)
+    else:
+        next(islice(iter, n, n), None)
 
 
 def unwrapper(values, max_number, bad_frac=0.5):
@@ -177,6 +193,11 @@ class DataWrite:
         self.chunk_size = chunk_size
 
     def sub_chunks(self):
+        """Generate chunk sized array from the time and data that is to be written
+
+        Yields:
+            tuple(Iterable[Any], Iterable[Any]): time and data chunk of larger array
+        """
         assert(len(self.time) % self.chunk_size == 0, "Length of time must be a multiple of chunk_size")
         num_chunks = len(self.time)//self.chunk_size
         for i in range(num_chunks):
@@ -209,13 +230,13 @@ class DataBuffer():
             data (deque[Any]): Data associated with sampling. Can be empty.
         """
         if header_data:  # implicitly check if we passed this
-            self.extend_header_data(header_data)
+            self.header_data.append(header_data)
 
         if header_time:
-            self.extend_header_time(header_time)
+            self.header_time.append(header_time)
 
         if time:
-            self.extend_time(time)
+            self.time.extend(time)
 
         if data:
             self.extend_data(data)
@@ -227,21 +248,14 @@ class DataBuffer():
 
         return self.num_buffers >= self.pop_boundry
 
-    def extend_header_data(self, header_data):
-        self.header_data.append(header_data)
-
-    def extend_header_time(self, header_time):
-        self.header_time.append(header_time)
-
-    def extend_time(self, time):
-        self.time.extend(time)
-
     def extend_data(self, data):
-        for (i, data_channel) in enumerate(data):
-            self.extend_data_channel(data_channel, i)
+        """Extends the individual data channels for this DataBuffer
 
-    def extend_data_channel(self, data, channel):
-        self.data[channel].extend(data)
+        Args:
+            data (Iterable[Iterable[Any]]): An array of arrays, with each internal array corresponding to the data channels
+        """
+        for (i, data_channel) in enumerate(data):
+            self.data[i].extend(data_channel)
 
     def pop_data(self, num_buffer_to_pop: int, num_packets_per_buffer: int, num_channels : int) -> DataWrite:
         """Number of buffers to pop off the queue ready for writing
@@ -272,7 +286,8 @@ class DataBuffer():
         # self.time is true if self.time is not empty
         if self.header_time and not self.time:
             popped_times = [self.last_time]
-            popped_times.extend([self.header_time.popleft() for _ in range(num_buffer_to_pop)])
+            #popped_times.extend([self.header_time.popleft() for _ in range(num_buffer_to_pop)])
+            popped_times.extend(POPPER(self.header_time, num_buffer_to_pop))
             # We have popped the times, but now we need to unwrap them if we overflowed
             pre_time, num_overflows = unwrapper(popped_times, max_number=MAX_TIME, bad_frac=0.5)            
             time     = np.zeros(shape=(num_packets_per_buffer*num_buffer_to_pop, ))
@@ -281,29 +296,29 @@ class DataBuffer():
                 time[i*num_packets_per_buffer : (i+1)*num_packets_per_buffer] = np.linspace(popped_times[i], popped_times[i+1], num_packets_per_buffer+1)[1:]
             self.last_time = time[-1]
         elif self.time: #if time is an empty deque, this will be false
-            pre_time = self.time_offset + np.asarray([ self.time.popleft() for _ in range(len_data) ] )
+            #pre_time = self.time_offset + np.asarray([ self.time.popleft() for _ in range(len_data) ] )
+            pre_time = self.time_offset + np.asarray(list(POPPER(self.time, len_data)))
             # We have popped the times, but now we need to unwrap them if we overflowed
             time, num_overflows = unwrapper(pre_time, max_number=MAX_TIME, bad_frac=0.5)
             # IMPORTANT: for this case, it is possible to have header_time, we are just not using it.
             # And so, we must pop the times to ensure that we don't overfill the deque and take up
             # valuable space
             if self.header_time:
-                for _ in range(num_buffer_to_pop):
-                    self.header_time.popleft()
+                consume(POPPER(self.header_time, num_buffer_to_pop))
         else:  # where has the time gone... it is not in the buffer
             raise("We have no way to get time, passed in neither header nor with data\n")
 
         # We get rid of header_data for now, as we are not using it in the current versions
         if self.header_data:
-            for _ in range(num_buffer_to_pop):
-                self.header_data.pop_left()
+            consume(POPPER(self.header_time, num_buffer_to_pop))
 
         # Adjust the time offset based on overflows
         self.time_offset += num_overflows*MAX_TIME
 
         # Pop the data channels individually for the deserialization
         for (i, channel_data) in enumerate(self.data):
-            temp = [ channel_data.popleft() for _ in range(len_data) ]
+            #temp = [ channel_data.popleft() for _ in range(len_data) ]
+            temp = list(POPPER(channel_data, len_data))
             data[:, i] = temp
 
         self.num_buffers -= num_buffer_to_pop  # update the number of buffers based on the amount that was popped
@@ -311,6 +326,10 @@ class DataBuffer():
         return DataWrite(time=time/MICROSECONDS_IN_A_SECOND, data=data, chunk_size=self.chunk_size)
     
     def reset(self):
+        """Resets the data in the DataBuffer to be empty
+
+        For some reason it was needed to write this function so that pytest would run as expected.
+        """
         self.header_time = deque()
         self.header_data = deque()
         self.time        = deque()
