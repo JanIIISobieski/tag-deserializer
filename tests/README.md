@@ -118,6 +118,9 @@ Benchmarks can be easily identified in the code by taking a look at any function
 ## Python Profiling
 `pytest --profile` will run function profiling to see where the time is being spent for running the functions. Useful for identifying bottlenecks in running the tag functions.
 
+## Python Benchmarking:
+  * starmap pop is faster than using list comprehension
+
 ## Python Test Profiling Results
 Might have to rewrite the tests to pre-make the files so that they exist and are already written, otherwise we will waste time remaking files that are quite costly to create... 
 ```

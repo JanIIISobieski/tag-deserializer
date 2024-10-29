@@ -3,7 +3,10 @@ import pytest_benchmark
 import struct
 import rawutil
 from animal_tag.serializer.utils import import_external_header
-from animal_tag.serializer.deserializer import FileParser
+from collections import deque
+from itertools import starmap, repeat
+from collections.abc import Iterable
+from typing import Any
 
 from pathlib import Path
 
@@ -56,3 +59,21 @@ def test_external_header():
     header = import_external_header(file_path)
 
     assert len(header.keys()) == 2
+
+def pop_enumerate(n : int) -> Iterable[Any]:
+    x = deque([i for i in range(1280)])
+    return [x.popleft() for _ in range(n)]
+
+def pop_starmap(n : int) -> Iterable[Any]:
+    x = deque([i for i in range(1280)])
+    return list(starmap(x.popleft, repeat((), n)))
+
+def test_deque_popleft_array_func(benchmark):
+    vals = benchmark(pop_enumerate, 1024)
+
+    assert len(vals) == 1024
+
+def test_deque_starmap_pop(benchmark):
+    vals = benchmark(pop_starmap, 1024)
+
+    assert len(vals) == 1024

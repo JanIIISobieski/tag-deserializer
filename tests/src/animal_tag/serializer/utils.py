@@ -261,7 +261,7 @@ class DataBuffer():
             num_channels(int): The number of data channels per sampling event
 
         Returns:
-            dict: A dictionary with the time and data of the popped buffers
+            DataWrite: An object from which we can grab data for running
         """
         len_data     = num_buffer_to_pop*num_packets_per_buffer
 
@@ -293,13 +293,20 @@ class DataBuffer():
         else:  # where has the time gone... it is not in the buffer
             raise("We have no way to get time, passed in neither header nor with data\n")
 
+        # We get rid of header_data for now, as we are not using it in the current versions
+        if self.header_data:
+            for _ in range(num_buffer_to_pop):
+                self.header_data.pop_left()
+
+        # Adjust the time offset based on overflows
         self.time_offset += num_overflows*MAX_TIME
 
+        # Pop the data channels individually for the deserialization
         for (i, channel_data) in enumerate(self.data):
             temp = [ channel_data.popleft() for _ in range(len_data) ]
             data[:, i] = temp
 
-        self.num_buffers -= num_buffer_to_pop
+        self.num_buffers -= num_buffer_to_pop  # update the number of buffers based on the amount that was popped
 
         return DataWrite(time=time/MICROSECONDS_IN_A_SECOND, data=data, chunk_size=self.chunk_size)
     
