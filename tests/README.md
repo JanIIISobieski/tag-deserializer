@@ -5,10 +5,17 @@ python src/animal_tag/serializer/deserializer.py [-H external_header_file] filen
 ```
 We need to pass the filename that we want to deserialize, the filename to which we are saving (ending in .h5), and then optionally pass a `-H` flag (`-h` is for help) to give the external header file that we will use for deserializing the file if the file does not come with a header.
 
-Example:
+Example (if run from the root folder):
 ```
 python src/animal_tag/serializer/deserializer.py ./tests/Data/MTAG2-Hua-LS.bin ./tests/Data/Test.h5 -H ./tests/Data/test_header.txt
 ```
+
+Example (if run from the folder containing deserializer)
+```
+python -m deserializer [-H path_header_file] path_filename path_savefile
+```
+Note the `-m` flag in this example.
+
 # Serialization Format
 This defines the serialization format for the new animal tags. This will ensure a consistent interface across the board.
 
