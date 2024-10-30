@@ -6,6 +6,7 @@ import tqdm
 from json import JSONDecoder
 from collections import deque
 import h5py
+import argparse
 
 import numpy as np
 from animal_tag.serializer.utils import (get_packet_size, correct_format,
@@ -340,3 +341,18 @@ class FileParser():
             file_loc = self.file.tell()
 
         self.file.seek(self.file.saved_loc, 0)  #go back to the saved file location to read the file data
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        prog='deserializer.py',
+        description='Deserializes MTAG2 file based on header',
+        epilog='Gabriel Antoniak (gjantoni@umich.com)')
+
+    parser.add_argument('filename', type=str, help='The file to be deserialized')
+    parser.add_argument('savefile', type=str, help='The location of the savefile to be written')
+    parser.add_argument('-H', '--header', type=str, default='', help='Location of external header file for parsing')
+
+    args = parser.parse_args()
+
+    fp = FileParser(args.filename, args.savefile)
+    fp.parse(args.header)
