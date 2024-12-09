@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+src/__init__.py
+src/animal_tag.egg-info/PKG-INFO
+src/animal_tag.egg-info/SOURCES.txt
+src/animal_tag.egg-info/dependency_links.txt
+src/animal_tag.egg-info/requires.txt
+src/animal_tag.egg-info/top_level.txt
+src/animal_tag/serializer/buffer_generator.py
+src/animal_tag/serializer/deserializer.py
+src/animal_tag/serializer/utils.py
+tests/test_creation.py
+tests/test_deserialization.py
+tests/test_popping.py
