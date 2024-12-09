@@ -1,7 +1,7 @@
 # MTAG2 Deserializer
 ## Developer Install
 Once pulled from GitHub, go to the root folder structure, and create the development environment with
-`python 3 -m venv env`. Once this command runs, there will be an `env/` folder in the root directory. Now, we need to install the code dependencies for running the program. First, we can update pip with `pip install --upgrade pip`, and then install build with `pip install -U build`. With this, we are now ready to install the dependencies with `pip intall -e .` (see [Local Project Installs][editablesite]). This gives us access to running the source code. To install what is needed for development, additionally run `pip install pytest pytest-cov pytest-benchmark`.
+`python 3 -m venv env`. Once this command runs, there will be an `env/` folder in the root directory. We need to activate using `source env/bin/activate` for Unix-based systems, and `source Scripts/env/activate` for Windows based systems. Now, we need to install the code dependencies for running the program. First, we can update pip with `pip install --upgrade pip`, and then install build with `pip install -U build`. With this, we are now ready to install the dependencies with `pip intall -e .` (see [Local Project Installs][editablesite]). This gives us access to running the source code. To install what is needed for development, additionally run `pip install pytest pytest-cov pytest-benchmark`.
 
 To check if everything is working correctly, run pytest-v, and all the unit-tests should pass.
 
@@ -42,7 +42,7 @@ This defines the serialization format for the new animal tags. This will ensure 
 ```
   * __ID__: single byte, uniquely identifies the sampling device from which the data is from
   * __Time__: unsigned integer (uint_32), the time at which the entire buffer was written to the SD card, useful for both error checking (buffer time should monotonically increase, with no/limited jitter in timings, excluding overflows)
-  * __Null__: Marks the end of the header, serves as a seperator between header and data, useful to look for when looking at the binary data
+  * __Null__: Marks the end of the header, serves as a separator between header and data, useful to look for when looking at the binary data
   * __Data__: the raw data corresponding to this buffer. Note that data can be multiple samples long (and usually is in the hundreds if not thousands of samples). SD cards prefer powers of 2 sized buffers. A 6 byte header for an 8192 byte buffer will mean 8186 bytes for data storage. Important for hydrophone which is an int16, which will fit an even 4093 times into the data portion of the buffer.
 
 ### Data Format
