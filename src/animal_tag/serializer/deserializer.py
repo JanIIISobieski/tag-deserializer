@@ -85,6 +85,7 @@ class FileSaver():
                 continue  #skip if we don't actually have this in the buffer system
 
             # TODO: Assign a specific data type to each channel to save space
+            # TODO: If channel only contains time data, then do not create a 'data' section
             g = self.file.create_group(dicts["device"])
             d1 = g.create_dataset('time', shape=(num_samples, ),
                                   maxshape=(num_samples, ),
