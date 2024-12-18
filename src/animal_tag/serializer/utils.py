@@ -6,11 +6,12 @@ from json import JSONDecoder
 from itertools import starmap, repeat, islice
 
 # Stores the mapping from MTAG key to the size of the key
-SIZE_DICT = {"B": 1, "b": 1, # int_8 and uint_8
-             "H": 2, "h": 2, # int_16 and uint_16
-             "U": 3, "u": 3, # int_24 and uint_24
+SIZE_DICT = {"B": 1, "b": 1, # uint_8 and int_8
+             "H": 2, "h": 2, # uint_16 and int_16
+             "U": 3, "u": 3, # uint_24 and int_24
+             "I": 4, "i": 4, # uint_32 and int_32
              "f": 4,         # f32
-             "L": 4, "l": 4, # int_32 and uint_32
+             "L": 4, "l": 4, # uint_32 and int_32
              "X": 1, "x": 1, # padding byte, explicitly taken care of rather than relying on struct/rawutil pack, always 0
              "T": 4          # custom type, corresponds to L (uint_32) from struct/rawutil, corresponds to a time, which will have special treatment
              }
@@ -25,6 +26,8 @@ TYPE_DICT = {"B": np.int8,
              "U": np.int32,
              "u": np.uint32,
              "f": np.single,
+             "i": np.int32,
+             "I": np.uint32,
              "L": np.int32,
              "l": np.uint32,
              "X": np.nan,
