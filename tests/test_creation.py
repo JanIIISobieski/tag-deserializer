@@ -8,6 +8,7 @@ import numpy as np
 from animal_tag.serializer.buffer_generator import DataBuffer
 from animal_tag.serializer.deserializer import FileReader, FileParser
 from animal_tag.serializer.utils import get_packet_size, count_data_channels, import_external_header
+from os.path import exists as os_file_exists
 
 ID        = [1]
 HEADER    = ["BTx"]
@@ -186,6 +187,10 @@ def test_external_header_parsing(write_bin_file):
 def test_longer_real_file_external_header(tmp_path_factory):
     file      = THIS_DIR / "Data/MTAG2-Hua-LS.bin"
     header    = THIS_DIR / "Data/test_header.txt"
+
+    if not os_file_exists(file) or not os_file_exists(file):
+        pytest.skip("Test data not found. Check download location from Dropbox.")
+
     save_file = tmp_path_factory.mktemp("real_file_external_header") / "MTAG2-Hua-LS.h5"
 
     fp = FileParser(file, save_file)
@@ -196,6 +201,10 @@ def test_longer_real_file_external_header(tmp_path_factory):
 def test_unwrap_times_real_file_external_header(tmp_path_factory):
     file      = THIS_DIR / "Data/MTAG2-Hua-LS-Long.bin"
     header    = THIS_DIR / "Data/test_header.txt"
+
+    if not os_file_exists(file) or not os_file_exists(file):
+        pytest.skip("Test data not found. Check download location from Dropbox.")
+
     save_file = tmp_path_factory.mktemp("real_file_external_header") / "MTAG2-Hua-LS-Long.h5"
 
     fp = FileParser(file, save_file)
