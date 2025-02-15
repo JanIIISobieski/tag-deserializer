@@ -110,7 +110,7 @@ def test_bin_file_decoder_creation(write_bin_file):
     fp.read_file_header()
     fp.generate_decoder()
 
-    # We are really abusing notation here. This will only _summary_work if we have a singular ID.
+    # We are really abusing notation here. This will only work if we have a singular ID.
     # This unpacks the keys from the decoder is then captured in a list. The buffer.id is
     # likewise captured in a list so we can compare the two lists together. This then simply
     # compares to ensure the keys in the decoder matches the available ID

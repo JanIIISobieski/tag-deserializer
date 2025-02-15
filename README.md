@@ -3,7 +3,7 @@
 Once pulled from GitHub, go to the root folder structure, and create the development environment with
 `python 3 -m venv env`. Once this command runs, there will be an `env/` folder in the root directory. We need to activate using `source env/bin/activate` for Unix-based systems, and `source Scripts/env/activate` for Windows based systems. Now, we need to install the code dependencies for running the program. First, we can update pip with `pip install --upgrade pip`, and then install build with `pip install -U build`. With this, we are now ready to install the dependencies with `pip intall -e .` (see [Local Project Installs][editablesite]). This gives us access to running the source code. To install what is needed for development, additionally run `pip install pytest pytest-cov pytest-benchmark`.
 
-To check if everything is working correctly, run pytest-v, and all the unit-tests should pass.
+To check if everything is working correctly, run `pytest -v`, and all the unit-tests should pass.
 
 [editablesite]: https://pip.pypa.io/en/stable/topics/local-project-installs/#editable-installs (Python: Editable Installs)
 
